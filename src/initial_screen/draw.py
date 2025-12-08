@@ -67,6 +67,7 @@ big_score = [
 ]
 
 options = ["Start new game", "Load game", "Score", "Settings", "Exit"]
+how_many_options = len(options)
 
 def draw_logo(stdscr, y_offset: int = 0) -> None:
     height, width = stdscr.getmaxyx()

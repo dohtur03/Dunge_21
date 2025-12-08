@@ -1,11 +1,10 @@
 import curses
 from draw import *
 
-player_name = "<default_player>" # потом импортировать из класса Player наверное будем
-
 class Menu():
     def __init__(self, stdscr):
         self.stdscr = stdscr
+        self.stdscr.keypad(True)
         curses.curs_set(0)
         curses.start_color()
         curses.use_default_colors()
@@ -17,10 +16,86 @@ class Menu():
         curses.init_pair(6, curses.COLOR_MAGENTA, -1)
         curses.init_pair(7, curses.COLOR_CYAN, -1)
         curses.init_pair(8, curses.COLOR_BLACK, -1)
+        
         self.sound_on = True
+        self.player_name = "<default_player>"
     
-    def load_game(self) -> str | None:
+    def get_player_name(self) -> None:
         height, width = self.stdscr.getmaxyx()
+        max_name_len = 20
+
+        while True:
+            self.stdscr.clear()
+
+            big_block = big_start
+            block_h = len(big_block)
+            y_title_block = height // 4 - block_h // 2
+
+            for i, line in enumerate(big_block):
+                y = y_title_block + i
+                if 0 <= y < height:
+                    x = (width - len(line)) // 2
+                    self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
+
+            title = "Enter your name:"
+            hint = "<Type your name and press 'Enter' to start ('Backspace' to delete char)>"
+
+            y_title = height // 2
+            x_title = (width - len(title)) // 2
+            self.stdscr.addstr(y_title, x_title, title, curses.color_pair(2) | curses.A_BOLD)
+
+            y_hint = y_title + 2
+            x_hint = (width - len(hint)) // 2
+            self.stdscr.addstr(y_hint, x_hint, hint, curses.color_pair(3))
+
+            y_input = y_hint + 2
+            x_input = (width - max_name_len - 2) // 2
+        
+            name_buffer = ""
+            curses.noecho()
+            curses.curs_set(2)
+        
+            while True:
+                self.stdscr.move(y_input, x_input + 1)
+                self.stdscr.clrtoeol()
+            
+                if name_buffer:
+                    self.stdscr.addstr(y_input, x_input + 1, name_buffer, curses.color_pair(4))
+            
+                self.stdscr.move(y_input, x_input + 1 + len(name_buffer))
+                self.stdscr.refresh()
+
+                key = self.stdscr.getch()
+
+                if key in (10, 13, curses.KEY_ENTER):
+                    curses.curs_set(0)
+                    name = name_buffer.strip()
+                    break
+                
+                elif key in (127, 8, curses.KEY_BACKSPACE):
+                    name_buffer = name_buffer[:-1]
+                
+                elif 32 <= key <= 126 and len(name_buffer) < max_name_len:
+                    name_buffer += chr(key)
+
+            if not name:
+                self.stdscr.clear()
+                name_msg = "Please enter your name to start!!"
+                h, w = self.stdscr.getmaxyx()
+                msg_y = h // 2
+                msg_x = (w - len(name_msg)) // 2
+                self.stdscr.addstr(msg_y, msg_x, name_msg, curses.color_pair(1) | curses.A_BOLD)
+                self.stdscr.refresh()
+                self.stdscr.timeout(-1)
+                self.stdscr.getch()
+                curses.curs_set(0)
+                continue
+
+            self.player_name = name
+            curses.curs_set(0)
+            return
+
+    def load_game(self) -> str | None:
         selected = 0
         blink = False
 
@@ -28,6 +103,7 @@ class Menu():
         back_index = len(slots) - 1
 
         while True:
+            height, width = self.stdscr.getmaxyx()
             self.stdscr.clear()
             big_block = big_load_game
             block_h = len(big_block)
@@ -74,7 +150,7 @@ class Menu():
             if key == -1:
                 continue
             if key == curses.KEY_UP:
-                selected = (selected - 1) % len(slots)
+                selected = (selected - 1) % len(slots)  
             elif key == curses.KEY_DOWN:
                 selected = (selected + 1) % len(slots)
             elif key in (curses.KEY_ENTER, 10, 13):
@@ -241,7 +317,7 @@ class Menu():
             elif key in (curses.KEY_ENTER, 10, 13):
                 return selected == 0
 
-    def run(self) -> str | None:
+    def run(self) -> tuple[str, str | None]:
         self.stdscr.clear()
 
         height, width = self.stdscr.getmaxyx()
@@ -274,13 +350,14 @@ class Menu():
             if key == -1:
                 continue
             if key == curses.KEY_UP:
-                selected = (selected - 1) % 5
+                selected = (selected - 1) % how_many_options
             elif key == curses.KEY_DOWN:
-                selected = (selected + 1) % 5
+                selected = (selected + 1) % how_many_options
             elif key in (curses.KEY_ENTER, 10, 13):
                 if selected == 0:
+                    self.get_player_name()
                     self.stdscr.clear()
-                    msg = f"The adventure begins. So may God have mercy on your soul, {player_name}!"
+                    msg = f"The adventure begins. So may God have mercy on your soul, {self.player_name}!"
                     h, w = self.stdscr.getmaxyx()
                     y = h // 2
                     x = (w - len(msg)) // 2
@@ -288,7 +365,7 @@ class Menu():
                     self.stdscr.refresh()
                     self.stdscr.timeout(-1)
                     self.stdscr.getch()
-                    return None
+                    return ("new_game", self.player_name)
                 elif selected == 1:
                     slot = self.load_game()
                     if slot is not None:
@@ -301,7 +378,7 @@ class Menu():
                         self.stdscr.refresh()
                         self.stdscr.timeout(-1)
                         self.stdscr.getch()
-                        return None   
+                        return ("load_game", slot) 
                 elif selected == 2:
                     self.score_menu()
                 elif selected == 3:
@@ -317,6 +394,6 @@ class Menu():
                         self.stdscr.refresh()
                         self.stdscr.timeout(-1)
                         self.stdscr.getch()
-                        return None
+                        return ("exit", None)
                     else:
                         continue
