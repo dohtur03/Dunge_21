@@ -1,0 +1,2 @@
+# Requires Python 3.10+
+windows-curses; platform_system == "Windows" and python_version < "3.14"
