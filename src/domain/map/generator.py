@@ -62,21 +62,71 @@ class LevelGenerator:
         return rooms
 
     def _get_connections(self, rooms: list[Room]) -> list[tuple[Room, Room]]:
-        connections: list[tuple[Room, Room]] = []
-
         rows = self.config.rooms_in_row
         cols = self.config.rooms_in_column
 
+        # 1. Собираем все возможные соседние пары по индексам
+        # индексация: index = row * cols + col
+        candidate_edges: list[tuple[int, int]] = []
+
+        # горизонтальные соседи
         for row in range(rows):
             for col in range(cols - 1):
-                idx_left = row * cols + col
-                idx_right = row * cols + (col + 1)
-                connections.append((rooms[idx_left], rooms[idx_right]))
+                left = row * cols + col
+                right = row * cols + (col + 1)
+                candidate_edges.append((left, right))
 
+        # вертикальные соседи
         for row in range(rows - 1):
             for col in range(cols):
-                idx_top = row * cols + col
-                idx_bottom = (row + 1) * cols + col
-                connections.append((rooms[idx_top], rooms[idx_bottom]))
+                top = row * cols + col
+                bottom = (row + 1) * cols + col
+                candidate_edges.append((top, bottom))
+
+        # 2. Перемешиваем рёбра для рандома
+        random.shuffle(candidate_edges)
+
+        # 3. Строим случайное остовное дерево (random spanning tree) через union–find
+        parent = list(range(len(rooms)))
+
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        def union(a: int, b: int) -> None:
+            ra = find(a)
+            rb = find(b)
+            if ra != rb:
+                parent[rb] = ra
+
+        chosen_edges_idx: list[tuple[int, int]] = []
+
+        for i, j in candidate_edges:
+            if find(i) != find(j):
+                union(i, j)
+                chosen_edges_idx.append((i, j))
+
+        # На этом этапе у нас уже связный граф (дерево),
+        # каждая комната связана хотя бы с чем-то.
+
+        # 4. (Опционально) добавим немного дополнительных рёбер для разнообразия
+        extra_prob = 0.3  # 30% шанс добавить лишнюю связь
+
+        used = set(tuple(sorted(e)) for e in chosen_edges_idx)
+
+        for i, j in candidate_edges:
+            key = tuple(sorted((i, j)))
+            if key in used:
+                continue
+            if random.random() < extra_prob:
+                chosen_edges_idx.append((i, j))
+                used.add(key)
+
+        # 5. Преобразуем индексы в реальные комнаты
+        connections: list[tuple[Room, Room]] = [
+            (rooms[i], rooms[j]) for i, j in chosen_edges_idx
+        ]
 
         return connections
