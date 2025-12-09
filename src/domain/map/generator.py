@@ -1,6 +1,7 @@
 import random
 
 from domain.map.room import Room
+from domain.map.corridor import Corridor
 from domain.map.level import Level
 from domain.map.config import LevelConfig
 
@@ -11,11 +12,20 @@ class LevelGenerator:
 
     def generate(self) -> Level:
         rooms = self._place_rooms()
+        connections = self._get_connections(rooms)
+
+        corridors: list[Corridor] = []
+        for first_room, second_room in connections:
+            corridor = Corridor.between(first_room, second_room)
+            if corridor.points:
+                corridors.append(corridor)
 
         level = Level(
             width=self.config.map_width,
             height=self.config.map_height,
             rooms=rooms,
+            connections=connections,
+            corridors=corridors,
         )
 
         return level
@@ -50,3 +60,23 @@ class LevelGenerator:
                 rooms.append(Room(left, top, room_width, room_height))
 
         return rooms
+
+    def _get_connections(self, rooms: list[Room]) -> list[tuple[Room, Room]]:
+        connections: list[tuple[Room, Room]] = []
+
+        rows = self.config.rooms_in_row
+        cols = self.config.rooms_in_column
+
+        for row in range(rows):
+            for col in range(cols - 1):
+                idx_left = row * cols + col
+                idx_right = row * cols + (col + 1)
+                connections.append((rooms[idx_left], rooms[idx_right]))
+
+        for row in range(rows - 1):
+            for col in range(cols):
+                idx_top = row * cols + col
+                idx_bottom = (row + 1) * cols + col
+                connections.append((rooms[idx_top], rooms[idx_bottom]))
+
+        return connections
