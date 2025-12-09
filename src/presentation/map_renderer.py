@@ -5,18 +5,19 @@ class MapRenderer:
         self.win = win
 
     def draw_level(self, level):
-        # реальные размеры окна
-        height, width = self.win.getmaxyx()
+        # очистить окно
+        self.win.erase()
+        self.win.box()
 
-        # не выходим за пределы окна (мин с запасом)
-        max_y = min(level.height, height) - 1
-        max_x = min(level.width, width) - 1
+        for room in level.rooms:
+            self._draw_room(room)
 
-        for y in range(max_y):
-            for x in range(max_x):
-                ch = level.tiles[y][x].char
+        self.win.refresh()
+
+    def _draw_room(self, room):
+        for y in range(room.top, room.bottom):
+            for x in range(room.left, room.right):
                 try:
-                    self.win.addch(y, x, ch)
+                    self.win.addch(y, x, ".")
                 except curses.error:
-                    # если всё-таки что-то пошло не так — просто игнорируем
                     pass
