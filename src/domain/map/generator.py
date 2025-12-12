@@ -1,5 +1,6 @@
 import random
 
+from domain.map.level_exit import LevelExit
 from domain.map.room import Room
 from domain.map.corridor import Corridor
 from domain.map.level import Level
@@ -20,12 +21,15 @@ class LevelGenerator:
             if corridor.points:
                 corridors.append(corridor)
 
+        level_exit = self._place_level_exit(random.choice(rooms))
+
         level = Level(
             width=self.config.map_width,
             height=self.config.map_height,
             rooms=rooms,
             connections=connections,
             corridors=corridors,
+            level_exit=level_exit
         )
 
         return level
@@ -130,3 +134,8 @@ class LevelGenerator:
         ]
 
         return connections
+
+    def _place_level_exit(self, room : Room) -> LevelExit:
+        x, y = room.center
+
+        return LevelExit(x, y)
