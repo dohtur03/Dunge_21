@@ -320,42 +320,43 @@ class Menu():
                 return selected == 0
 
     def run(self) -> tuple[str, str | None]:
-        self.stdscr.clear()
-
         height, width = self.stdscr.getmaxyx()
-
         logo_top = 1
-        logo_height = len(logo)
-
-        menu_height = len(options) + 1
-
         center_y = height // 2
-
-        menu_top = center_y - menu_height // 2
-
-        draw_logo(self.stdscr, y_offset=logo_top)
+        menu_top = center_y - (how_many_options + 1) // 2
 
         selected = 0
         blink = False
-        
+
+        total_items = how_many_options + 1 if self.has_active_game else how_many_options
+        base_index_offset = 1 if self.has_active_game else 0
+
         while True:
             self.stdscr.clear()
             draw_logo(self.stdscr, y_offset=logo_top)
-            draw_menu(self.stdscr, first_line_y=menu_top, selected=selected, blink=blink)
+            draw_menu_items(self.stdscr, menu_top, total_items, selected, blink, self.has_active_game, base_index_offset, width)
+
+            menu_index = selected - base_index_offset if not (self.has_active_game and selected == 0) else -1
+            big_block = get_big_block(menu_index, self.has_active_game, selected)
+            draw_big_block(self.stdscr, big_block, width, height)
+            draw_bottom_panel(self.stdscr, height, width)
+        
             self.stdscr.refresh()
-            
             blink = not blink
             self.stdscr.timeout(300)
             key = self.stdscr.getch()
-
-            if key == -1:
+        
+            if key == -1: 
                 continue
-            if key == curses.KEY_UP:
-                selected = (selected - 1) % how_many_options
-            elif key == curses.KEY_DOWN:
-                selected = (selected + 1) % how_many_options
+            if key == curses.KEY_UP: 
+                selected = (selected - 1) % total_items
+            elif key == curses.KEY_DOWN: 
+                selected = (selected + 1) % total_items
             elif key in (curses.KEY_ENTER, 10, 13):
-                if selected == 0:
+                if self.has_active_game and selected == 0:
+                    return ("back_to_game", None)
+                index = selected - base_index_offset
+                if index == 0:
                     self.get_player_name()
                     self.stdscr.clear()
                     msg = f"The adventure begins. So may God have mercy on your soul, {self.player_name}!"
@@ -367,7 +368,7 @@ class Menu():
                     self.stdscr.timeout(-1)
                     self.stdscr.getch()
                     return ("new_game", self.player_name)
-                elif selected == 1:
+                elif index == 1:
                     slot = self.load_game()
                     if slot is not None:
                         self.stdscr.clear()
@@ -380,11 +381,11 @@ class Menu():
                         self.stdscr.timeout(-1)
                         self.stdscr.getch()
                         return ("load_game", slot) 
-                elif selected == 2:
+                elif index == 2:
                     self.score_menu()
-                elif selected == 3:
+                elif index == 3:
                     self.settings_menu()
-                elif selected == 4:
+                elif index == 4:
                     if self.exit_menu():
                         self.stdscr.clear()
                         msg = "Good luck! See you next time!"
