@@ -2,7 +2,7 @@ import curses
 from draw import *
 
 class Menu():
-    def __init__(self, stdscr):
+    def __init__(self, stdscr, game_status: str = "inactive"):
         self.stdscr = stdscr
         self.stdscr.keypad(True)
         curses.curs_set(0)
@@ -19,6 +19,8 @@ class Menu():
         
         self.sound_on = True
         self.player_name = "<default_player>"
+
+        self.has_active_game = (game_status == "active")
     
     def get_player_name(self) -> None:
         height, width = self.stdscr.getmaxyx()
@@ -281,7 +283,7 @@ class Menu():
                     x = (width - len(line)) // 2
                     self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
 
-            question = "Are you sure you want to leave the game?"
+            question = "Are you sure you want to exit?"
             q_y = block_top + block_h + 2
             q_x = (width - len(question)) // 2
             self.stdscr.addstr(q_y, q_x, question, curses.color_pair(3) | curses.A_BOLD)
@@ -331,7 +333,6 @@ class Menu():
 
         menu_top = center_y - menu_height // 2
 
-        animate_logo(self.stdscr, y_offset=logo_top)
         draw_logo(self.stdscr, y_offset=logo_top)
 
         selected = 0

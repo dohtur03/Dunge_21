@@ -157,17 +157,3 @@ def draw_menu(stdscr, first_line_y: int, selected: int, blink: bool) -> None:
         pair = student_pairs[i % len(student_pairs)]
         attr = curses.color_pair(pair) | curses.A_BOLD
         stdscr.addstr(y, x, name, attr)
-
-def animate_logo(stdscr, y_offset: int = 0) -> None:
-    height, width = stdscr.getmaxyx()
-    logo_width = max(len(line) for line in logo)
-
-    start_y = y_offset
-    start_x = (width - logo_width) // 2
-
-    for i, line in enumerate(logo):
-        y = start_y + i
-        if y < height:
-            stdscr.addstr(y, start_x, line, curses.color_pair(1))
-        stdscr.refresh()
-        curses.napms(180)
