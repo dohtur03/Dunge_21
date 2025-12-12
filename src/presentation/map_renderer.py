@@ -31,6 +31,6 @@ class MapRenderer:
     def _draw_corridor(self, corridor: Corridor):
         for x, y in corridor.points:
             try:
-                self.win.addch(y, x, "!")  # или другой символ для коридора
+                self.win.addch(y, x, ".")  # или другой символ для коридора
             except curses.error:
                 pass
