@@ -1,10 +1,18 @@
+from initial_screen.menu import Menu
+from initial_screen.game import Game
 import curses
 
-from domain.session import Session
+def main(stdscr):
+        menu = Menu(stdscr)
+        action, data = menu.run()
 
-def main():
-    session = Session()
-    curses.wrapper(session.start)
+        if action == "new_game":
+            game = Game(stdscr, data)
+            game.run()
+        elif action == "load_game":
+            game = Game.from_slot(stdscr, data)
+            game.run()
 
-if __name__ == '__main__':
-    main()
+
+if __name__ == "__main__":
+    curses.wrapper(main)

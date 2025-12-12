@@ -1,4 +1,5 @@
 import curses
+from domain.level_loader import LevelLoader
 
 class Game:
     def __init__(self, stdscr, player_name: str):
@@ -13,12 +14,16 @@ class Game:
     def run(self) -> None:
         while True:
             self.stdscr.clear()
-            
+
             height, width = self.stdscr.getmaxyx()
             msg = f"Game started for {self.player_name}!"
             y_msg = 2
             x_msg = (width - len(msg)) // 2
             self.stdscr.addstr(y_msg, x_msg, msg, curses.color_pair(4) | curses.A_BOLD)
+
+            level_loader = LevelLoader()
+            curses.wrapper(level_loader.load)
+
 
             hint = "Press 'q' to quit!"
             y_hint = y_msg + 2

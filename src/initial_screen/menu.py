@@ -1,5 +1,5 @@
 import curses
-from draw import *
+from initial_screen.draw import *
 
 class Menu():
     def __init__(self, stdscr):
