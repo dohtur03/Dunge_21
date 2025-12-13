@@ -12,6 +12,8 @@ test_messages = [
     "Are you still here? Cool!",
 ]
 
+death_message = "You died!"
+
 def get_random_message() -> str:
     return random.choice(test_messages)
 

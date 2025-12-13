@@ -30,6 +30,13 @@ class Game:
 
         self.inventory = Inventory(stdscr, player_name)
 
+        self.start_time = time.time()
+
+        self.inventory.category_items["Weapon"][0] = "Big Big Sword [test]"
+        self.inventory.category_items["Food"][0]   = "Beer [test]"
+        self.inventory.category_items["Potion"][0] = "Healing Potion [test]"
+        self.inventory.category_items["Scroll"][0] = "Fireball Scroll [test]"
+
     @classmethod
     def from_slot(cls, stdscr, slot_name: str):
         game = cls(stdscr, f"Player_{slot_name}")
@@ -85,7 +92,12 @@ class Game:
     def run(self) -> str:
         while True:
             current_time = time.time()
-            
+            total_run = int(current_time - self.start_time)
+            self.player_score = total_run
+            if self.player_hits <= 0:
+                msg = death_message
+                self.logger.show_popup(self.stdscr, msg)
+                return "quit_game"
             if self.logger.needs_popup(current_time):
                 msg = get_random_message()
                 self.logger.show_popup(self.stdscr, msg)
@@ -123,9 +135,9 @@ class Game:
                 self.player_x -= 1
             elif key == ord('d') or key == curses.KEY_RIGHT:
                 self.player_x += 1
-        
-            self.draw_game()
             
+            self.draw_game()
+
     def player_pos_init(self, height, width):
         self.player_y = height // 2
         self.player_x = width // 2
@@ -183,12 +195,8 @@ class Game:
         if chosen_item is None:
             return
         
-        height, width = self.stdscr.getmaxyx()
-        msg = f"{category}: {chosen_item}"
-        y = height // 2
-        x = (width - len(msg)) // 2
-        self.stdscr.clear()
-        self.stdscr.addstr(y, x, msg, curses.color_pair(4) | curses.A_BOLD)
-        self.stdscr.refresh()
-        self.stdscr.timeout(-1)
-        self.stdscr.getch()
+        category_name, slot_idx, item = chosen_item
+        self.inventory.category_items[category_name][slot_idx] = None
+        
+        msg = f"Used {category_name} slot {slot_idx + 1}: {item}"
+        self.logger.show_popup(self.stdscr, msg)

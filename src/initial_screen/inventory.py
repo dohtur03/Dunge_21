@@ -5,6 +5,12 @@ class Inventory:
         self.stdscr = stdscr
         self.player_name = player_name
         self.categories = ["Weapon", "Food", "Potion", "Scroll", "Back"]
+        self.category_items = {
+            "Weapon": [None] * 9,
+            "Food":   [None] * 9,
+            "Potion": [None] * 9,
+            "Scroll": [None] * 9,
+        }
     
     def show(self) -> str | None:
         height, width = self.stdscr.getmaxyx()
@@ -91,7 +97,7 @@ class Inventory:
         win = curses.newwin(h, w, win_y, win_x)
         win.bkgdset(' ', curses.color_pair(8) | curses.A_BOLD)
 
-        slots = [None] * 9
+        slots = self.category_items[category]
 
         selected = 0
         blink = False
@@ -189,4 +195,4 @@ class Inventory:
                 win.clear()
                 win.refresh()
                 del win
-                return chosen
+                return (category, slot_idx, item)
