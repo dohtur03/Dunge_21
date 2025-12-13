@@ -1,4 +1,7 @@
 import curses
+from log import *
+import time
+from inventory import *
 
 class Game:
     def __init__(self, stdscr, player_name: str):
@@ -23,10 +26,17 @@ class Game:
         self.PANEL_HEIGHT = 3
         self.BORDER_TOP = 3
 
+        self.logger = GameLog()
+
+        self.inventory = Inventory(stdscr, player_name)
+
     @classmethod
     def from_slot(cls, stdscr, slot_name: str):
         game = cls(stdscr, f"Player_{slot_name}")
         return game
+
+    def get_score(self):
+        return self.player_score
 
     def exit_game(self) -> int:
         height, width = self.stdscr.getmaxyx()
@@ -72,8 +82,15 @@ class Game:
             elif key in (curses.KEY_ENTER, 10, 13):
                 return selected
 
-    def run(self) -> None:
+    def run(self) -> str:
         while True:
+            current_time = time.time()
+            
+            if self.logger.needs_popup(current_time):
+                msg = get_random_message()
+                self.logger.show_popup(self.stdscr, msg)
+                self.logger.last_popup = current_time
+            
             self.stdscr.timeout(100)
             key = self.stdscr.getch()
             
@@ -94,6 +111,10 @@ class Game:
                     continue
                 if option == 2:
                     return "back_to_menu"
+            elif key == ord('i'):
+                selected_category = self.inventory.show()
+                if selected_category and selected_category != "Back":
+                    self.open_category(selected_category)
             elif key == ord('w') or key == curses.KEY_UP:
                 self.player_y -= 1
             elif key == ord('s') or key == curses.KEY_DOWN:
@@ -118,7 +139,7 @@ class Game:
         x_status = (width - len(status)) // 2
         self.stdscr.addstr(y_status, x_status, status, curses.color_pair(4) | curses.A_BOLD)
 
-        hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! (press 'q' to quit>"
+        hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! ('q' to quit, 'i' to open inventory)>"
         y_hint_controls = y_status + 2
         x_hint_controls = (width - len(hint_controls)) // 2
         self.stdscr.addstr(y_hint_controls, x_hint_controls, hint_controls, curses.color_pair(3))
@@ -156,3 +177,18 @@ class Game:
         self.draw_player()
 
         self.stdscr.refresh()
+    
+    def open_category(self, category: str) -> None:
+        chosen_item = self.inventory.show_category_items(category)
+        if chosen_item is None:
+            return
+        
+        height, width = self.stdscr.getmaxyx()
+        msg = f"{category}: {chosen_item}"
+        y = height // 2
+        x = (width - len(msg)) // 2
+        self.stdscr.clear()
+        self.stdscr.addstr(y, x, msg, curses.color_pair(4) | curses.A_BOLD)
+        self.stdscr.refresh()
+        self.stdscr.timeout(-1)
+        self.stdscr.getch()

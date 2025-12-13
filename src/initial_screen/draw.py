@@ -1,4 +1,5 @@
 import curses
+from score import *
 
 logo = [
     r"██████╗  ██████╗  ██████╗  ██╗   ██╗ ███████╗",
@@ -75,6 +76,15 @@ big_back_to_game = [
     r"                                    |___/                       ",
 ]
 
+big_save_game = [
+    r" ____                                                ",
+    r"/ ___|  __ ___   _____    __ _  __ _ _ __ ___   ___  ",
+    r"\___ \ / _` \ \ / / _ \  / _` |/ _` | '_ ` _ \ / _ \ ",
+    r" ___) | (_| |\ V /  __/ | (_| | (_| | | | | | |  __/ ",
+    r"|____/ \__,_| \_/ \___|  \__, |\__,_|_| |_| |_|\___| ",
+    r"                         |___/                       ",
+]
+
 options = ["Start new game", "Load game", "Score", "Settings", "Exit"]
 how_many_options = len(options)
 
@@ -90,9 +100,10 @@ def draw_logo(stdscr, y_offset: int = 0) -> None:
             stdscr.addstr(start_y + i, start_x, line, curses.color_pair(1))
 
 def get_big_block(menu_index: int, has_active_game: bool, selected: int):
-    """Возвращает большой блок по индексу меню"""
     if has_active_game and selected == 0:
         return big_back_to_game
+    elif has_active_game and selected == 1:
+        return big_save_game
     
     if menu_index == 0: return big_start
     elif menu_index == 1: return big_load_game
@@ -105,8 +116,14 @@ def draw_menu_items(stdscr, menu_top: int, total_items: int, selected: int, blin
     pointer = "▶"
     for i in range(total_items):
         y = menu_top + i
-        text = "Back to game" if has_active_game and i == 0 else options[i - base_index_offset]
         
+        if has_active_game and i == 0:
+            text = "Back to game"
+        elif has_active_game and i == 1:
+            text = "Save game"
+        else:
+            text = options[i - base_index_offset]
+
         if i == selected:
             line_text = f"{pointer} {text}"
             color = curses.color_pair(2 if blink else 3)
@@ -153,3 +170,37 @@ def draw_bottom_panel(stdscr, height: int, width: int):
         pair = student_pairs[i % len(student_pairs)]
         attr = curses.color_pair(pair) | curses.A_BOLD
         stdscr.addstr(y, x, name, attr)
+
+def draw_score(stdscr, height: int, width: int):
+    big_block = big_score
+    block_h = len(big_block)
+    y_title = height // 4 - block_h // 2
+
+    for i, line in enumerate(big_block):
+        y = y_title + i
+        if 0 <= y < height:
+            x = (width - len(line)) // 2
+            stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
+
+    top_score = get_top_score(10)
+    table_y = y_title + block_h + 2
+    table_x = (width - 30) // 2
+
+    headers = "Player        Score"
+    stdscr.addstr(table_y, table_x, headers, curses.color_pair(2) | curses.A_BOLD)
+
+    for i, (player, score) in enumerate(top_score):
+        y = table_y + i + 1
+        line = f"{player:<12} {score:>8,}"
+        color = curses.color_pair(4 if i == 0 else 3)
+        attr = color | curses.A_BOLD if i == 0 else color
+        stdscr.addstr(y, table_x, line[:30], attr)
+
+    for i in range(len(top_score), 10):
+        y = table_y + i + 1
+        stdscr.addstr(y, table_x, " " * 30, curses.color_pair(3))
+
+    back_y = table_y + 20
+    back_text = "<Press any key to return>"
+    back_x = (width - len(back_text)) // 2
+    stdscr.addstr(back_y, back_x, back_text, curses.color_pair(7))

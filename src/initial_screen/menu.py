@@ -2,7 +2,7 @@ import curses
 from draw import *
 
 class Menu():
-    def __init__(self, stdscr, game_status: str = "inactive"):
+    def __init__(self, stdscr, game_status: str = "inactive", player_name: str = "<default_player>"):
         self.stdscr = stdscr
         self.stdscr.keypad(True)
         curses.curs_set(0)
@@ -18,11 +18,11 @@ class Menu():
         curses.init_pair(8, curses.COLOR_BLACK, -1)
         
         self.sound_on = True
-        self.player_name = "<default_player>"
+        self.player_name = player_name
 
         self.has_active_game = (game_status == "active")
     
-    def get_player_name(self) -> None:
+    def get_player_name(self) -> str:
         height, width = self.stdscr.getmaxyx()
         max_name_len = 20
 
@@ -95,7 +95,7 @@ class Menu():
 
             self.player_name = name
             curses.curs_set(0)
-            return
+            return name
 
     def load_game(self) -> str | None:
         selected = 0
@@ -164,46 +164,14 @@ class Menu():
 
     def score_menu(self) -> None:
         height, width = self.stdscr.getmaxyx()
-        selected = 0
-        blink = False
-
+        
         while True:
             self.stdscr.clear()
-
-            big_block = big_score
-            block_h = len(big_block)
-            y_title = height // 4 - block_h // 2
-
-            for i, line in enumerate(big_block):
-                y = y_title + i
-                if 0 <= y < height:
-                    x = (width - len(line)) // 2
-                    self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
-
-            options_h = 1
-            center_y = height // 2
-            y_back = center_y - options_h // 2
-
-            pointer = "▶" if selected == 0 else " "
-            line_back = f"{pointer} Back"
-
-            color_back = curses.color_pair(2 if (selected == 0 and blink) else 3)
-            attr_back = color_back | (curses.A_BOLD if selected == 0 else 0)
-            x_back = (width - len(line_back)) // 2
-            self.stdscr.addstr(y_back, x_back, line_back, attr_back)
-
+            draw_score(self.stdscr, height, width)
             self.stdscr.refresh()
-
-            blink = not blink
-            self.stdscr.timeout(300)
+            self.stdscr.timeout(-1)
             key = self.stdscr.getch()
-
-            if key == -1:
-                continue
-            if key in (curses.KEY_UP, curses.KEY_DOWN):
-                selected = (selected + 1) % 1
-            elif key in (curses.KEY_ENTER, 10, 13):
-                return
+            break
     
     def settings_menu(self) -> None:
         height, width = self.stdscr.getmaxyx()
@@ -319,6 +287,17 @@ class Menu():
             elif key in (curses.KEY_ENTER, 10, 13):
                 return selected == 0
 
+    def save_game(self) -> None:
+        self.stdscr.clear()
+        msg = f"Game saved successfully, {self.player_name}!"
+        h, w = self.stdscr.getmaxyx()
+        y = h // 2
+        x = (w - len(msg)) // 2
+        self.stdscr.addstr(y, x, msg, curses.color_pair(4) | curses.A_BOLD)
+        self.stdscr.refresh()
+        self.stdscr.timeout(-1)
+        self.stdscr.getch()
+
     def run(self) -> tuple[str, str | None]:
         height, width = self.stdscr.getmaxyx()
         logo_top = 1
@@ -328,15 +307,15 @@ class Menu():
         selected = 0
         blink = False
 
-        total_items = how_many_options + 1 if self.has_active_game else how_many_options
-        base_index_offset = 1 if self.has_active_game else 0
+        total_items = how_many_options + 2 if self.has_active_game else how_many_options
+        base_index_offset = 2 if self.has_active_game else 0
 
         while True:
             self.stdscr.clear()
             draw_logo(self.stdscr, y_offset=logo_top)
             draw_menu_items(self.stdscr, menu_top, total_items, selected, blink, self.has_active_game, base_index_offset, width)
 
-            menu_index = selected - base_index_offset if not (self.has_active_game and selected == 0) else -1
+            menu_index = selected - base_index_offset if not (self.has_active_game and selected in (0, 1)) else -1
             big_block = get_big_block(menu_index, self.has_active_game, selected)
             draw_big_block(self.stdscr, big_block, width, height)
             draw_bottom_panel(self.stdscr, height, width)
@@ -355,6 +334,10 @@ class Menu():
             elif key in (curses.KEY_ENTER, 10, 13):
                 if self.has_active_game and selected == 0:
                     return ("back_to_game", None)
+                elif self.has_active_game and selected == 1:
+                    self.save_game()
+                    continue
+                
                 index = selected - base_index_offset
                 if index == 0:
                     self.get_player_name()
