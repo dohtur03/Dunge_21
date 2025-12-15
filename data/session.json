@@ -1,0 +1,20 @@
+{
+    "level": 1,
+    "hero_hp": 19.0,
+    "enemies": [
+        {
+            "name": "ghost",
+            "hp": 0.0,
+            "x": 21,
+            "y": 1,
+            "dead": true
+        },
+        {
+            "name": "ghost",
+            "hp": 0.0,
+            "x": 29,
+            "y": 18,
+            "dead": true
+        }
+    ]
+}

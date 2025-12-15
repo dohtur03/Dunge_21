@@ -1,25 +1,16 @@
-from objects.enemies import Enemy
-from loader import DataLoad
+from en_generator import generate_enemies
+from game_state import GameState
+from combat_loop import CombatLoop
 
 def main():
-    loader = DataLoad()
-
-    zomb = Enemy("zombie")
-    vamp = Enemy("vampire")
-    ghost = Enemy("ghost")
-    ogre = Enemy("ogre")
-    snake = Enemy("snake_mage")
-
-    print(zomb)
-    print(vamp)
-    print(ghost)
-    print(ogre)
-    print(snake)
-
-    zomb.take_dmg(10)
-    p_dmg = zomb.atk()
-    print(f"zombie attacks: {p_dmg} damage")
-    print(zomb)
+    level = 1
+    enemies = generate_enemies(level, num_enemies=2)
+    
+    state = GameState(level, enemies)
+    
+    combat = CombatLoop(state)
+    combat.run()
 
 if __name__ == "__main__":
     main()
+
