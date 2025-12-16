@@ -2,6 +2,8 @@ import curses
 from log import *
 import time
 from inventory import *
+from item import *
+import random
 
 class Game:
     def __init__(self, stdscr, player_name: str):
@@ -13,11 +15,13 @@ class Game:
         self.player_char = "☺"
         self.player_score = 0
         self.player_stage = 1
-        self.player_hits = 20
+        self.player_hits = 10
+        self.player_max_hits = 20
         self.player_str = 10
         self.player_agility = 10
-        self.player_gold = 10
+        self.player_gold = 0
         self.player_exp = 0
+        self.player_exp_to_level_up = "?"
         self.player_level = 1
 
         height, width = stdscr.getmaxyx()
@@ -28,16 +32,19 @@ class Game:
 
         self.logger = GameLog()
 
-        self.inventory = Inventory(stdscr, player_name)
+        self.inventory = Inventory(stdscr, player_name, self)
 
         self.start_time = time.time()
+        
+        self.current_weapon = None
+        self.player_total_str = self.player_str
+        self.potion_effects = []
 
-        self.inventory.category_items["Weapon"][0] = "Big Big Sword [test]"
-        self.inventory.category_items["Food"][0]   = "Beer [test]"
-        self.inventory.category_items["Potion"][0] = "Healing Potion [test]"
-        self.inventory.category_items["Scroll"][0] = "Fireball Scroll [test]"
+        for category_name in Item.items:
+            for i in range(5):
+                self.inventory.category_items[category_name][i] = Item(**random.choice(Item.items[category_name]))
 
-    @classmethod
+    @classmethod    
     def from_slot(cls, stdscr, slot_name: str):
         game = cls(stdscr, f"Player_{slot_name}")
         return game
@@ -91,13 +98,18 @@ class Game:
 
     def run(self) -> str:
         while True:
+            self.update_effects()
             current_time = time.time()
             total_run = int(current_time - self.start_time)
             self.player_score = total_run
+            
             if self.player_hits <= 0:
                 msg = death_message
                 self.logger.show_popup(self.stdscr, msg)
                 return "quit_game"
+            elif self.player_hits >= self.player_max_hits:
+                self.player_hits = self.player_max_hits
+            
             if self.logger.needs_popup(current_time):
                 msg = get_random_message()
                 self.logger.show_popup(self.stdscr, msg)
@@ -125,7 +137,9 @@ class Game:
                     return "back_to_menu"
             elif key == ord('i'):
                 selected_category = self.inventory.show()
-                if selected_category and selected_category != "Back":
+                if selected_category == None:
+                    continue  
+                if selected_category != "Back":
                     self.open_category(selected_category)
             elif key == ord('w') or key == curses.KEY_UP:
                 self.player_y -= 1
@@ -146,7 +160,20 @@ class Game:
         self.stdscr.addch(self.player_y, self.player_x, self.player_char, curses.color_pair(7) | curses.A_BOLD)
 
     def draw_panel(self, height, width) -> None:
-        status = f"Game started for {self.player_name}! Score: {self.player_score}"
+        active_buffs = []
+        current_time = time.time()
+        for effect in self.potion_effects:
+            if current_time < effect["end_time"]:
+                active_buffs.append(f"{effect['type'].upper()}+{effect['value']}")
+        
+        if len(list(active_buffs)) != 0:
+            buffs_text = " | ".join(active_buffs[:3])
+            if len(active_buffs) > 3:
+                buffs_text += " + ..."
+            status = f"Game started for {self.player_name}! Score: {self.player_score} Active buffs: {buffs_text}"
+        else:
+            status = f"Game started for {self.player_name}! Score: {self.player_score} No active buffs"
+
         y_status = 0
         x_status = (width - len(status)) // 2
         self.stdscr.addstr(y_status, x_status, status, curses.color_pair(4) | curses.A_BOLD)
@@ -170,7 +197,12 @@ class Game:
                 self.stdscr.addch(y, width - 1, "│", curses.color_pair(2) | curses.A_BOLD)
 
     def draw_bottom_panel(self, height, width) -> None:
-        stats = f"Stage: {self.player_stage} Hits: {self.player_hits} Str: {self.player_str} Agi: {self.player_agility} Gold: {self.player_gold} Exp: {self.player_exp} Level: {self.player_level}"
+        if self.current_weapon == None:
+                weapon_str_hint = ""
+        else:
+            weapon_str = self.current_weapon.value
+            weapon_str_hint = f"(+{weapon_str})"
+        stats = f"Stage: {self.player_stage} Hits: {self.player_hits}/{self.player_max_hits} Str: {self.player_str}{weapon_str_hint} Agi: {self.player_agility} Gold: {self.player_gold} Exp: {self.player_exp}/{self.player_exp_to_level_up} Level: {self.player_level}"
         y_stats = height - 1
         x_stats = max(1, (width - len(stats)) // 2)
         self.stdscr.addstr(y_stats, x_stats, stats[:width], curses.color_pair(3) | curses.A_BOLD)
@@ -192,11 +224,60 @@ class Game:
     
     def open_category(self, category: str) -> None:
         chosen_item = self.inventory.show_category_items(category)
-        if chosen_item is None:
+        
+        if chosen_item == "Back":
             return
         
-        category_name, slot_idx, item = chosen_item
-        self.inventory.category_items[category_name][slot_idx] = None
+        if chosen_item is not None:
+            category_name, slot_idx, item = chosen_item
+            self.inventory.category_items[category_name][slot_idx] = None
+    
+    def update_stats(self):
+        self.player_total_str = self.player_str + (self.current_weapon.value if self.current_weapon is not None else 0)
+    
+    def add_potion_effect(self, effect_type, value, duration):
+        self.potion_effects.append({
+            "type": effect_type,
+            "value": value,
+            "end_time": time.time() + duration
+        })
+
+        if effect_type == "max_hits":
+            self.player_max_hits += value
+        elif effect_type == "strength":
+            self.player_str += value
+        elif effect_type == "agility":
+            self.player_agility += value
+
+    def update_effects(self):
+        current_time = time.time()
+          
+        all_effects = self.potion_effects.copy()
+        self.potion_effects = []
         
-        msg = f"Used {category_name} slot {slot_idx + 1}: {item}"
-        self.logger.show_popup(self.stdscr, msg)
+        active_effects = []
+        
+        for effect in all_effects:
+            if current_time < effect["end_time"]:
+                self.potion_effects.append(effect)
+                active_effects.append(f"{effect['type'].upper()}+{effect['value']}")
+        
+        max_hp_bonus = 0
+        str_bonus = 0
+        agi_bonus = 0
+
+        for effect in all_effects:
+            if current_time >= effect["end_time"]:
+                if effect["type"] == "max_hits":
+                    max_hp_bonus += effect["value"]
+                    self.logger.show_popup(self.stdscr, f"Effect of MAX HP +{effect['value']} has expired!")
+                elif effect["type"] == "strength":
+                    str_bonus += effect["value"]
+                    self.logger.show_popup(self.stdscr, f"Effect of STR +{effect['value']} has expired!")
+                elif effect["type"] == "agility":
+                    agi_bonus += effect["value"]
+                    self.logger.show_popup(self.stdscr, f"Effect of AGI +{effect['value']} has expired!")
+
+        self.player_max_hits -= max_hp_bonus
+        self.player_str -= str_bonus
+        self.player_agility -= agi_bonus

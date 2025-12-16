@@ -7,8 +7,8 @@ test_messages = [
     "Great! You're still alive! Big balls!",
     "Keep trying! Never give up!",
     "Just do your best to survive!",
-    "10 seconds alive! Unreal!",
-    "You're good enough to survive 10 seconds...",
+    "30 seconds alive! Unreal!",
+    "You're good enough to survive 30 seconds...",
     "Are you still here? Cool!",
 ]
 
@@ -20,7 +20,7 @@ def get_random_message() -> str:
 class GameLog:
     def __init__(self):
         self.last_popup = time.time()
-        self.popup_interval = 10
+        self.popup_interval = 30
     
     def needs_popup(self, current_time: float) -> bool:
         return (current_time - self.last_popup) >= self.popup_interval
