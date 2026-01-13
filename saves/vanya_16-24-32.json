@@ -1,0 +1,194 @@
+{
+  "position": [
+    4,
+    50
+  ],
+  "player_name": "vanya",
+  "inventory": {
+    "Weapon": [
+      {
+        "name": "Dragon Slayer",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 6,
+        "description_template": "+{value} STR"
+      },
+      {
+        "name": "Dragon Slayer",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 6,
+        "description_template": "+{value} STR"
+      },
+      {
+        "name": "Broken Staff",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 1,
+        "description_template": "+{value} STR"
+      },
+      {
+        "name": "Enchanted Blade",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 5,
+        "description_template": "+{value} STR"
+      },
+      {
+        "name": "Paladin's Sword",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 5,
+        "description_template": "+{value} STR"
+      },
+      null,
+      null,
+      null,
+      null
+    ],
+    "Food": [
+      {
+        "name": "Roasted Turkey",
+        "effect_duration": 0,
+        "effect_type": "hits",
+        "value": 10,
+        "description_template": "+{value} HP"
+      },
+      {
+        "name": "Watermelon",
+        "effect_duration": 0,
+        "effect_type": "hits",
+        "value": 4,
+        "description_template": "+{value} HP"
+      },
+      {
+        "name": "Bread",
+        "effect_duration": 0,
+        "effect_type": "hits",
+        "value": 5,
+        "description_template": "+{value} HP"
+      },
+      {
+        "name": "Forest Mushroom",
+        "effect_duration": 0,
+        "effect_type": "hits",
+        "value": 2,
+        "description_template": "+{value} HP"
+      },
+      {
+        "name": "Brown Ale",
+        "effect_duration": 0,
+        "effect_type": "hits",
+        "value": 5,
+        "description_template": "+{value} HP"
+      },
+      null,
+      null,
+      null,
+      null
+    ],
+    "Potion": [
+      null,
+      {
+        "name": "Agility Potion",
+        "effect_duration": 1,
+        "effect_type": "agility",
+        "value": 4,
+        "description_template": "+{value} MAX AGI for {effect_duration} min"
+      },
+      {
+        "name": "Weak Strength Potion",
+        "effect_duration": 1,
+        "effect_type": "strength",
+        "value": 2,
+        "description_template": "+{value} MAX STR for {effect_duration} min"
+      },
+      {
+        "name": "Strong Strength Potion",
+        "effect_duration": 1,
+        "effect_type": "strength",
+        "value": 8,
+        "description_template": "+{value} MAX STR for {effect_duration} min"
+      },
+      {
+        "name": "Weak Agility Potion",
+        "effect_duration": 1,
+        "effect_type": "agility",
+        "value": 2,
+        "description_template": "+{value} MAX AGI for {effect_duration} min"
+      },
+      null,
+      null,
+      null,
+      null
+    ],
+    "Scroll": [
+      {
+        "name": "Weak Scroll of Agility",
+        "effect_duration": 0,
+        "effect_type": "agility",
+        "value": 1,
+        "description_template": "+{value} MAX AGI"
+      },
+      {
+        "name": "Scroll of Agility",
+        "effect_duration": 0,
+        "effect_type": "agility",
+        "value": 2,
+        "description_template": "+{value} MAX AGI"
+      },
+      {
+        "name": "Weak Scroll of Agility",
+        "effect_duration": 0,
+        "effect_type": "agility",
+        "value": 1,
+        "description_template": "+{value} MAX AGI"
+      },
+      {
+        "name": "Great Scroll of Health",
+        "effect_duration": 0,
+        "effect_type": "max_hits",
+        "value": 8,
+        "description_template": "+{value} MAX HP"
+      },
+      {
+        "name": "Scroll of Strength",
+        "effect_duration": 0,
+        "effect_type": "strength",
+        "value": 2,
+        "description_template": "+{value} MAX STR"
+      },
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "score": 28,
+  "stage": 1,
+  "player_hits": 10,
+  "player_max_hits": 20,
+  "player_str": 10,
+  "player_agility": 14,
+  "player_gold": 0,
+  "player_exp": 0,
+  "player_exp_to_level_up": "?",
+  "player_level": 1,
+  "start_time": 1768310630.4638925,
+  "current_weapon": {
+    "name": "Dragon Slayer",
+    "effect_duration": 0,
+    "effect_type": "strength",
+    "value": 6,
+    "description_template": "+{value} STR"
+  },
+  "player_total_str": 16,
+  "potion_effects": [
+    {
+      "type": "agility",
+      "value": 4,
+      "end_time": 1768310714.7373192
+    }
+  ],
+  "__slot_index__": 1
+}
