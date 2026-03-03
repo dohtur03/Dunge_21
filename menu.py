@@ -1,8 +1,9 @@
 import curses
-from initial_screen.draw import *
+from draw import *
+from storage import Storage
 
 class Menu():
-    def __init__(self, stdscr):
+    def __init__(self, stdscr, game_status: str = "inactive", player_name: str = "<default_player>"):
         self.stdscr = stdscr
         self.stdscr.keypad(True)
         curses.curs_set(0)
@@ -18,9 +19,12 @@ class Menu():
         curses.init_pair(8, curses.COLOR_BLACK, -1)
         
         self.sound_on = True
-        self.player_name = "<default_player>"
+        self.player_name = player_name
+
+        self.has_active_game = (game_status == "active")
+        self.storage = Storage()
     
-    def get_player_name(self) -> None:
+    def get_player_name(self) -> str:
         height, width = self.stdscr.getmaxyx()
         max_name_len = 20
 
@@ -93,13 +97,75 @@ class Menu():
 
             self.player_name = name
             curses.curs_set(0)
-            return
-
-    def load_game(self) -> str | None:
+            return name
+    def save_game(self) -> int | None:
         selected = 0
         blink = False
 
-        slots = ["<test_slot>"] + ["<empty>"] * 9 + ["Back"]
+        slots = self.storage.slots + ["Back"]
+        back_index = len(slots) - 1
+
+        while True:
+            height, width = self.stdscr.getmaxyx()
+            self.stdscr.clear()
+            big_block = big_save_game
+            block_h = len(big_block)
+            y_title = height // 4 - block_h // 2
+            
+            for i, line in enumerate(big_block):
+                y = y_title + i
+                if 0 <= y < height:
+                    x = (width - len(line)) // 2
+                    self.stdscr.addstr(y, x, line,  curses.color_pair(2) | curses.A_BOLD)
+            
+            options_h = len(slots)
+            center_y = height // 2
+            first_y = center_y - options_h // 2
+
+            pointer = "▶"
+
+            for i, name in enumerate(slots):
+                y = first_y + i
+                if y < 0 or y >= height:
+                    continue
+
+                is_selected = (i == selected)
+                is_back = (i == back_index)
+                is_empty = (name == "<empty>")
+
+                line = f"{pointer} {name}" if is_selected else f"  {name}"
+
+                if is_selected:
+                    color = curses.color_pair(2 if blink else 3)
+                    attr = color | curses.A_BOLD
+                else:
+                    attr = curses.color_pair(3)
+
+                x = (width - len(line)) // 2
+                self.stdscr.addstr(y, x, line, attr)
+
+            self.stdscr.refresh()
+
+            blink = not blink
+            self.stdscr.timeout(300)
+            key = self.stdscr.getch()
+
+            if key == -1:
+                continue
+            if key == curses.KEY_UP:
+                selected = (selected - 1) % len(slots)  
+            elif key == curses.KEY_DOWN:
+                selected = (selected + 1) % len(slots)
+            elif key in (curses.KEY_ENTER, 10, 13):
+                if selected == back_index:
+                    return None
+                return selected
+            
+    def load_game(self) -> int | None:
+        selected = 0
+        blink = False
+
+        slots = self.storage.slots + ["Back"]
         back_index = len(slots) - 1
 
         while True:
@@ -158,50 +224,18 @@ class Menu():
                     return None
                 if slots[selected] == "<empty>":
                     continue
-                return slots[selected].strip("<>")
+                return selected
 
     def score_menu(self) -> None:
         height, width = self.stdscr.getmaxyx()
-        selected = 0
-        blink = False
-
+        
         while True:
             self.stdscr.clear()
-
-            big_block = big_score
-            block_h = len(big_block)
-            y_title = height // 4 - block_h // 2
-
-            for i, line in enumerate(big_block):
-                y = y_title + i
-                if 0 <= y < height:
-                    x = (width - len(line)) // 2
-                    self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
-
-            options_h = 1
-            center_y = height // 2
-            y_back = center_y - options_h // 2
-
-            pointer = "▶" if selected == 0 else " "
-            line_back = f"{pointer} Back"
-
-            color_back = curses.color_pair(2 if (selected == 0 and blink) else 3)
-            attr_back = color_back | (curses.A_BOLD if selected == 0 else 0)
-            x_back = (width - len(line_back)) // 2
-            self.stdscr.addstr(y_back, x_back, line_back, attr_back)
-
+            draw_score(self.stdscr, height, width)
             self.stdscr.refresh()
-
-            blink = not blink
-            self.stdscr.timeout(300)
+            self.stdscr.timeout(-1)
             key = self.stdscr.getch()
-
-            if key == -1:
-                continue
-            if key in (curses.KEY_UP, curses.KEY_DOWN):
-                selected = (selected + 1) % 1
-            elif key in (curses.KEY_ENTER, 10, 13):
-                return
+            break
     
     def settings_menu(self) -> None:
         height, width = self.stdscr.getmaxyx()
@@ -281,7 +315,7 @@ class Menu():
                     x = (width - len(line)) // 2
                     self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
 
-            question = "Are you sure you want to leave the game?"
+            question = "Are you sure you want to exit?"
             q_y = block_top + block_h + 2
             q_x = (width - len(question)) // 2
             self.stdscr.addstr(q_y, q_x, question, curses.color_pair(3) | curses.A_BOLD)
@@ -318,43 +352,50 @@ class Menu():
                 return selected == 0
 
     def run(self) -> tuple[str, str | None]:
-        self.stdscr.clear()
-
         height, width = self.stdscr.getmaxyx()
-
         logo_top = 1
-        logo_height = len(logo)
-
-        menu_height = len(options) + 1
-
         center_y = height // 2
-
-        menu_top = center_y - menu_height // 2
-
-        animate_logo(self.stdscr, y_offset=logo_top)
-        draw_logo(self.stdscr, y_offset=logo_top)
+        menu_top = center_y - (how_many_options + 1) // 2
 
         selected = 0
         blink = False
-        
+
+        total_items = how_many_options + 2 if self.has_active_game else how_many_options
+        base_index_offset = 2 if self.has_active_game else 0
+
         while True:
             self.stdscr.clear()
             draw_logo(self.stdscr, y_offset=logo_top)
-            draw_menu(self.stdscr, first_line_y=menu_top, selected=selected, blink=blink)
+            draw_menu_items(self.stdscr, menu_top, total_items, selected, blink, self.has_active_game, base_index_offset, width)
+
+            menu_index = selected - base_index_offset if not (self.has_active_game and selected in (0, 1)) else -1
+            big_block = get_big_block(menu_index, self.has_active_game, selected)
+            draw_big_block(self.stdscr, big_block, width, height)
+            draw_bottom_panel(self.stdscr, height, width)
+        
             self.stdscr.refresh()
-            
             blink = not blink
             self.stdscr.timeout(300)
             key = self.stdscr.getch()
-
-            if key == -1:
+        
+            if key == -1: 
                 continue
-            if key == curses.KEY_UP:
-                selected = (selected - 1) % how_many_options
-            elif key == curses.KEY_DOWN:
-                selected = (selected + 1) % how_many_options
+            if key == curses.KEY_UP: 
+                selected = (selected - 1) % total_items
+            elif key == curses.KEY_DOWN: 
+                selected = (selected + 1) % total_items
             elif key in (curses.KEY_ENTER, 10, 13):
-                if selected == 0:
+                if self.has_active_game and selected == 0:
+                    return ("back_to_game", None)
+                elif self.has_active_game and selected == 1:
+                    slot_index = self.save_game()
+                    if slot_index is not None:
+                        return ("save_game", slot_index)
+                    else:
+                        continue
+                
+                index = selected - base_index_offset
+                if index == 0:
                     self.get_player_name()
                     self.stdscr.clear()
                     msg = f"The adventure begins. So may God have mercy on your soul, {self.player_name}!"
@@ -366,7 +407,7 @@ class Menu():
                     self.stdscr.timeout(-1)
                     self.stdscr.getch()
                     return ("new_game", self.player_name)
-                elif selected == 1:
+                elif index == 1:
                     slot = self.load_game()
                     if slot is not None:
                         self.stdscr.clear()
@@ -379,11 +420,11 @@ class Menu():
                         self.stdscr.timeout(-1)
                         self.stdscr.getch()
                         return ("load_game", slot) 
-                elif selected == 2:
+                elif index == 2:
                     self.score_menu()
-                elif selected == 3:
+                elif index == 3:
                     self.settings_menu()
-                elif selected == 4:
+                elif index == 4:
                     if self.exit_menu():
                         self.stdscr.clear()
                         msg = "Good luck! See you next time!"
