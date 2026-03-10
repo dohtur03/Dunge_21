@@ -1,5 +1,5 @@
 import curses
-from src.domain.item import *
+from domain.item import *
 import time
 
 class Inventory:

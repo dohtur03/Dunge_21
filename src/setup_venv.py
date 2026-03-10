@@ -62,7 +62,7 @@ def main():
     print("To run the project:")
 
     if is_windows():
-        print("\033[32m.venv\\Scripts\\python3.exe main.py\033[0m")
+        print("\033[32m.venv\\Scripts\\python3.exe main.py or .\.venv\Scripts\\activate\033[0m")
     else:
         print("\033[32m.venv/bin/python3 main.py\033[0m")
 

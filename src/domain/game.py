@@ -1,6 +1,6 @@
-from src.presentation.log import *
-from inventory import *
-from src.domain.item import *
+from presentation.log import *
+from domain.inventory import *
+from domain.item import *
 import random
 
 class Game:

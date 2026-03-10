@@ -1,6 +1,7 @@
-from src.presentation.menu import *
-from src.domain.game import *
-from src.presentation.loader import *
+from datalayer.score import save_score
+from presentation.menu import *
+from domain.game import *
+from presentation.loader import *
 
 
 def main(stdscr):

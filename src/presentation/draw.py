@@ -1,5 +1,5 @@
 import curses
-from score import *
+from datalayer.score import *
 
 logo = [
     r"██████╗  ██████╗  ██████╗  ██╗   ██╗ ███████╗",

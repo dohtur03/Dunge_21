@@ -1,5 +1,5 @@
-from src.presentation.draw import *
-from src.datalayer.storage import Storage
+from presentation.draw import *
+from datalayer.storage import Storage
 
 class Menu():
     def __init__(self, stdscr, game_status: str = "inactive", player_name: str = "<default_player>"):
