@@ -1,5 +1,5 @@
 import random
-
+from domain.enemy import Enemy
 
 class Room:
     def __init__(self, x: int, y: int, width: int, height: int):
@@ -31,6 +31,10 @@ class Level:
 
         self.rooms: list[Room] = []
         self.corridors: set[tuple[int, int]] = set()
+
+        # Коллекции для хранения объектов на карте
+        self.enemies: list[Enemy] = []
+        self.gold_drops: dict[tuple[int, int], int] = {}  # Словарь: координаты (y, x) -> количество золота
 
         self.start_pos = (0, 0)
         self.end_pos = (0, 0)
@@ -76,6 +80,8 @@ class Level:
                     bottom_idx = (row + 1) * 3 + col
                     self._create_corridor(self.rooms[current_idx], self.rooms[bottom_idx])
 
+        self._spawn_entities()
+
     def _create_corridor(self, room1: Room, room2: Room):
         """Строит Г-образный коридор из координат между центрами двух комнат"""
         y1, x1 = room1.center
@@ -92,3 +98,36 @@ class Level:
                 self.corridors.add((y, x1))
             for x in range(min(x1, x2), max(x1, x2) + 1):
                 self.corridors.add((y2, x))
+
+    def _spawn_entities(self):
+        """Раскидывает монстров и золото по комнатам"""
+        enemy_templates = [
+            {"name": "Goblin", "char": "g", "hp": 5, "strength": 2, "exp": 10},
+            {"name": "Skeleton", "char": "s", "hp": 8, "strength": 3, "exp": 15},
+            {"name": "Orc", "char": "O", "hp": 15, "strength": 5, "exp": 30}
+        ]
+
+        for room in self.rooms:
+            # В стартовой комнате всегда безопасно
+            if room.is_start:
+                continue
+
+            # Спавним от 0 до 2 врагов в комнате
+            for _ in range(random.randint(0, 2)):
+                ey = random.randint(room.y, room.y + room.height - 1)
+                ex = random.randint(room.x, room.x + room.width - 1)
+
+                # Исключаем спавн прямо на выходе
+                if (ey, ex) != self.end_pos:
+                    template = random.choice(enemy_templates)
+                    enemy = Enemy(template["name"], template["char"], ey, ex,
+                                  template["hp"], template["strength"], template["exp"])
+                    self.enemies.append(enemy)
+
+            # Спавним от 0 до 2 кучек золота
+            for _ in range(random.randint(0, 2)):
+                gy = random.randint(room.y, room.y + room.height - 1)
+                gx = random.randint(room.x, room.x + room.width - 1)
+
+                if (gy, gx) != self.end_pos:
+                    self.gold_drops[(gy, gx)] = random.randint(10, 50)

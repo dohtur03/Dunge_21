@@ -97,10 +97,21 @@ class GameView:
                 if 0 <= room.x + room.width < width - 1:
                     self.stdscr.addch(room.y + room.height, room.x + room.width, '┘', curses.color_pair(2))
 
+
         # 3. Выход
         end_y, end_x = game.current_level.end_pos
         if safe_y <= end_y < height - 1 and 0 <= end_x < width - 1:
             self.stdscr.addch(end_y, end_x, '>', curses.color_pair(4) | curses.A_BOLD)
+
+        # 4. Рисуем золото (Символ '$', цвет 4 - обычно желтый)
+        for (gy, gx), amount in game.current_level.gold_drops.items():
+            if safe_y <= gy < height - 1 and 0 <= gx < width - 1:
+                self.stdscr.addch(gy, gx, '$', curses.color_pair(4) | curses.A_BOLD)
+
+        # 5. Рисуем врагов (Цвет 1 - красный)
+        for enemy in game.current_level.enemies:
+            if safe_y <= enemy.y < height - 1 and 0 <= enemy.x < width - 1:
+                self.stdscr.addch(enemy.y, enemy.x, enemy.char, curses.color_pair(1) | curses.A_BOLD)
 
     def draw_bottom_panel(self, game, height, width):
         if game.current_weapon == None:
