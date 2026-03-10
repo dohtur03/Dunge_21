@@ -6,6 +6,7 @@ from presentation.game_view import GameView
 from presentation.loader import run_loader
 from datalayer.score import save_score
 from presentation.log import death_message, get_random_message
+from presentation.inventory_view import InventoryView
 
 
 def run_game_loop(stdscr, game, view):
@@ -53,10 +54,8 @@ def run_game_loop(stdscr, game, view):
                 return "back_to_menu"
 
         elif action == "open_inventory":
-            # Пока инвентарь сам занимается отрисовкой, просто вызываем его старые методы
-            selected_category = game.inventory.show()
-            if selected_category is not None and selected_category != "Back":
-                game.open_category(selected_category)
+            inv_view = InventoryView(stdscr, view)
+            inv_view.show(game)
 
 
 def main(stdscr):

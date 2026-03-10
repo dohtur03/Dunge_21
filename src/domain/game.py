@@ -29,10 +29,7 @@ class Game:
         self.player_total_str = self.player_str
         self.potion_effects = []
 
-        # Внимание: инвентарь всё ещё требует stdscr. Мы почистим его позже!
-        # Пока оставляем передачу None вместо stdscr, чтобы не ломать код мгновенно
-        # (потребуется небольшая правка в inventory.py, если он упадет)
-        self.inventory = Inventory(None, player_name, self)
+        self.inventory = Inventory(player_name, self)
 
         for category_name in Item.items:
             for i in range(5):
@@ -65,14 +62,6 @@ class Game:
             return "request_quit"
 
         return "continue"
-
-    def open_category(self, category: str) -> None:
-        chosen_item = self.inventory.show_category_items(category)
-        if chosen_item == "Back":
-            return
-        if chosen_item is not None:
-            category_name, slot_idx, item = chosen_item
-            self.inventory.category_items[category_name][slot_idx] = None
 
     def update_stats(self):
         self.player_total_str = self.player_str + (self.current_weapon.value if self.current_weapon is not None else 0)
@@ -138,6 +127,74 @@ class Game:
             "potion_effects": self.potion_effects
         }
 
+    def use_item(self, category: str, slot_idx: int) -> str:
+        """Применяет эффект предмета и возвращает текст для всплывающего окна"""
+        item = self.inventory.category_items[category][slot_idx]
+        if item is None:
+            return ""
+
+        msg = ""
+        if category == "Weapon":
+            if self.current_weapon is item:
+                self.current_weapon = None
+                msg = f"{item.name} unequipped"
+            else:
+                self.current_weapon = item
+                msg = f"{item.name} equipped"
+            self.update_stats()
+
+        elif category == "Food":
+            old_hits = self.player_hits
+            if old_hits == self.player_max_hits:
+                msg = "HP full!"
+            else:
+                self.player_hits += item.value
+                if self.player_hits >= self.player_max_hits:
+                    msg = f"Eaten {item.name}! Restored {self.player_max_hits - old_hits} HP!"
+                    self.player_hits = self.player_max_hits
+                else:
+                    msg = f"Eaten {item.name}! Restored {item.value} HP!"
+            self.inventory.category_items[category][slot_idx] = None
+
+        elif category == "Scroll":
+            if item.effect_type == "max_hits":
+                self.player_max_hits += item.value
+                self.player_hits += item.value
+                msg = f"{item.name} is used! MAX HP and current HP increased by {item.value}!"
+            elif item.effect_type == "agility":
+                self.player_agility += item.value
+                msg = f"{item.name} is used! Agility increased by {item.value}!"
+            elif item.effect_type == "strength":
+                self.player_str += item.value
+                msg = f"{item.name} is used! Strength increased by {item.value}!"
+            self.inventory.category_items[category][slot_idx] = None
+
+        elif category == "Potion":
+            effect_duration = item.effect_duration * 60
+            if item.effect_type == "max_hits":
+                self.add_potion_effect("max_hits", item.value, effect_duration)
+                msg = f"{item.name} is used! MAX HP +{item.value} for {item.effect_duration} min!"
+            elif item.effect_type == "agility":
+                self.add_potion_effect("agility", item.value, effect_duration)
+                msg = f"{item.name} is used! Agility increased by {item.value} for {item.effect_duration} min!"
+            elif item.effect_type == "strength":
+                self.add_potion_effect("strength", item.value, effect_duration)
+                msg = f"{item.name} is used! Strength increased by {item.value} for {item.effect_duration} min!"
+            self.inventory.category_items[category][slot_idx] = None
+
+        return msg
+
+    def drop_item(self, category: str, slot_idx: int) -> str:
+        """Выбрасывает предмет из инвентаря"""
+        item = self.inventory.category_items[category][slot_idx]
+        if item is None:
+            return ""
+        self.inventory.category_items[category][slot_idx] = None
+        if category == "Weapon" and item == self.current_weapon:
+            self.current_weapon = None
+            self.update_stats()
+        return f"Thrown away: {item.name}"
+
     @classmethod
     def from_dict(cls, data: dict):
         game = cls.__new__(cls)
@@ -159,7 +216,6 @@ class Game:
         game.potion_effects = data.get("potion_effects", [])
 
         inv_data = data.get("inventory", {})
-        game.inventory = Inventory.from_dict(None, game.player_name, game, inv_data)  # Аналогично убрали stdscr
 
         weapon_data = data.get("current_weapon")
         game.current_weapon = None
