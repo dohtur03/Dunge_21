@@ -2,15 +2,12 @@ import time
 import random
 from domain.inventory import Inventory
 from domain.item import Item
+from domain.level import Level
 
 
 class Game:
     def __init__(self, player_name: str):
         self.player_name = player_name
-        # Стартовые координаты зададим по умолчанию,
-        # отрисовщик (View) сам отцентрирует их при первом рендере
-        self.player_y = 10
-        self.player_x = 10
         self.player_char = "☺"
 
         self.player_score = 0
@@ -31,12 +28,38 @@ class Game:
 
         self.inventory = Inventory(player_name, self)
 
+        # Заполняем инвентарь стартовыми предметами
         for category_name in Item.items:
             for i in range(5):
                 self.inventory.category_items[category_name][i] = Item(**random.choice(Item.items[category_name]))
 
+        # Генерируем первый уровень (логический размер 70x20)
+        self.generate_new_stage()
+
+    def generate_new_stage(self):
+        """Создает новый уровень и помещает игрока на старт"""
+        self.current_level = Level(self.player_stage, 70, 30)
+        self.current_level.generate_level()
+
+        # Ставим игрока в центр стартовой комнаты
+        self.player_y, self.player_x = self.current_level.start_pos
+
     def get_score(self):
         return self.player_score
+
+    def can_move(self, target_y: int, target_x: int) -> bool:
+        """Проверяет, является ли клетка полом комнаты или коридором"""
+        # 1. Проверяем коридоры
+        if (target_y, target_x) in self.current_level.corridors:
+            return True
+
+        # 2. Проверяем комнаты
+        for room in self.current_level.rooms:
+            # Находится ли координата внутри границ комнаты
+            if room.x <= target_x < room.x + room.width and room.y <= target_y < room.y + room.height:
+                return True
+
+        return False
 
     def process_turn(self, key) -> str | None:
         """Обработка одного хода/нажатия клавиши. Возвращает статус (например, 'quit') или None"""
@@ -48,84 +71,32 @@ class Game:
         elif self.player_hits >= self.player_max_hits:
             self.player_hits = self.player_max_hits
 
+        new_y, new_x = self.player_y, self.player_x
+
         if key == 119 or key == 259:  # w / UP
-            self.player_y -= 1
+            new_y -= 1
         elif key == 115 or key == 258:  # s / DOWN
-            self.player_y += 1
+            new_y += 1
         elif key == 97 or key == 260:  # a / LEFT
-            self.player_x -= 1
+            new_x -= 1
         elif key == 100 or key == 261:  # d / RIGHT
-            self.player_x += 1
+            new_x += 1
         elif key == 105:  # i
             return "open_inventory"
         elif key == 113:  # q
             return "request_quit"
 
+        # Пробуем сделать шаг
+        if self.can_move(new_y, new_x):
+            self.player_y, self.player_x = new_y, new_x
+
+            # Если дошли до выхода - переходим на следующий этап
+            if (self.player_y, self.player_x) == self.current_level.end_pos:
+                self.player_stage += 1
+                self.generate_new_stage()
+                return "stage_cleared"
+
         return "continue"
-
-    def update_stats(self):
-        self.player_total_str = self.player_str + (self.current_weapon.value if self.current_weapon is not None else 0)
-
-    def add_potion_effect(self, effect_type, value, duration):
-        self.potion_effects.append({
-            "type": effect_type,
-            "value": value,
-            "end_time": time.time() + duration
-        })
-
-        if effect_type == "max_hits":
-            self.player_max_hits += value
-            self.player_hits += value
-        elif effect_type == "strength":
-            self.player_str += value
-        elif effect_type == "agility":
-            self.player_agility += value
-
-    def update_effects(self):
-        current_time = time.time()
-        all_effects = self.potion_effects.copy()
-        self.potion_effects = []
-
-        max_hp_bonus = 0
-        str_bonus = 0
-        agi_bonus = 0
-
-        for effect in all_effects:
-            if current_time < effect["end_time"]:
-                self.potion_effects.append(effect)
-            else:
-                if effect["type"] == "max_hits":
-                    max_hp_bonus += effect["value"]
-                elif effect["type"] == "strength":
-                    str_bonus += effect["value"]
-                elif effect["type"] == "agility":
-                    agi_bonus += effect["value"]
-
-        self.player_max_hits -= max_hp_bonus
-        self.player_hits -= max_hp_bonus
-        self.player_str -= str_bonus
-        self.player_agility -= agi_bonus
-
-    def save_game_data_to_dict(self) -> dict:
-        return {
-            "position": [self.player_y, self.player_x],
-            "player_name": self.player_name,
-            "inventory": self.inventory.to_dict(),
-            "score": self.player_score,
-            "stage": self.player_stage,
-            "player_hits": self.player_hits,
-            "player_max_hits": self.player_max_hits,
-            "player_str": self.player_str,
-            "player_agility": self.player_agility,
-            "player_gold": self.player_gold,
-            "player_exp": self.player_exp,
-            "player_exp_to_level_up": self.player_exp_to_level_up,
-            "player_level": self.player_level,
-            "start_time": self.start_time,
-            "current_weapon": self.current_weapon.to_dict() if self.current_weapon else None,
-            "player_total_str": self.player_total_str,
-            "potion_effects": self.potion_effects
-        }
 
     def use_item(self, category: str, slot_idx: int) -> str:
         """Применяет эффект предмета и возвращает текст для всплывающего окна"""
@@ -195,6 +166,70 @@ class Game:
             self.update_stats()
         return f"Thrown away: {item.name}"
 
+    def update_stats(self):
+        self.player_total_str = self.player_str + (self.current_weapon.value if self.current_weapon is not None else 0)
+
+    def add_potion_effect(self, effect_type, value, duration):
+        self.potion_effects.append({
+            "type": effect_type,
+            "value": value,
+            "end_time": time.time() + duration
+        })
+
+        if effect_type == "max_hits":
+            self.player_max_hits += value
+            self.player_hits += value
+        elif effect_type == "strength":
+            self.player_str += value
+        elif effect_type == "agility":
+            self.player_agility += value
+
+    def update_effects(self):
+        current_time = time.time()
+        all_effects = self.potion_effects.copy()
+        self.potion_effects = []
+
+        max_hp_bonus = 0
+        str_bonus = 0
+        agi_bonus = 0
+
+        for effect in all_effects:
+            if current_time < effect["end_time"]:
+                self.potion_effects.append(effect)
+            else:
+                if effect["type"] == "max_hits":
+                    max_hp_bonus += effect["value"]
+                elif effect["type"] == "strength":
+                    str_bonus += effect["value"]
+                elif effect["type"] == "agility":
+                    agi_bonus += effect["value"]
+
+        self.player_max_hits -= max_hp_bonus
+        self.player_hits -= max_hp_bonus
+        self.player_str -= str_bonus
+        self.player_agility -= agi_bonus
+
+    def save_game_data_to_dict(self) -> dict:
+        return {
+            "position": [self.player_y, self.player_x],
+            "player_name": self.player_name,
+            "inventory": self.inventory.to_dict(),
+            "score": self.player_score,
+            "stage": self.player_stage,
+            "player_hits": self.player_hits,
+            "player_max_hits": self.player_max_hits,
+            "player_str": self.player_str,
+            "player_agility": self.player_agility,
+            "player_gold": self.player_gold,
+            "player_exp": self.player_exp,
+            "player_exp_to_level_up": self.player_exp_to_level_up,
+            "player_level": self.player_level,
+            "start_time": self.start_time,
+            "current_weapon": self.current_weapon.to_dict() if self.current_weapon else None,
+            "player_total_str": self.player_total_str,
+            "potion_effects": self.potion_effects
+        }
+
     @classmethod
     def from_dict(cls, data: dict):
         game = cls.__new__(cls)
@@ -216,6 +251,7 @@ class Game:
         game.potion_effects = data.get("potion_effects", [])
 
         inv_data = data.get("inventory", {})
+        game.inventory = Inventory.from_dict(game.player_name, game, inv_data)
 
         weapon_data = data.get("current_weapon")
         game.current_weapon = None
@@ -232,4 +268,9 @@ class Game:
                         break
 
         game.update_stats()
+
+        # Перегенерируем уровень для текущей стадии при загрузке игры
+        game.current_level = Level(game.player_stage, 70, 30)
+        game.current_level.generate_level()
+
         return game

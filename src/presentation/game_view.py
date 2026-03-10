@@ -1,33 +1,32 @@
 import curses
 import time
-from presentation.log import GameLog, death_message, get_random_message
+from presentation.log import GameLog
 
 
 class GameView:
     def __init__(self, stdscr):
         self.stdscr = stdscr
         self.PANEL_HEIGHT = 3
-        self.BORDER_TOP = 3
+        # Опускаем границу защиты текста до 2-й строки,
+        # чтобы 3-я строка была свободна для отрисовки верхних стен комнат
+        self.BORDER_TOP = 2
         self.logger = GameLog()
 
     def render(self, game):
-        """Отрисовывает текущее состояние игры"""
         self.stdscr.clear()
         height, width = self.stdscr.getmaxyx()
 
-        # Корректируем координаты, чтобы игрок не вышел за рамки поля
-        game.player_y = max(self.BORDER_TOP + 1, min(height - 3, game.player_y))
-        game.player_x = max(1, min(width - 2, game.player_x))
-
         self.draw_panel(game, height, width)
-        self.draw_field(height, width)
+        self.draw_field(game, height, width)
         self.draw_bottom_panel(game, height, width)
         self.draw_player(game)
 
         self.stdscr.refresh()
 
     def draw_player(self, game):
-        self.stdscr.addch(game.player_y, game.player_x, game.player_char, curses.color_pair(7) | curses.A_BOLD)
+        height, width = self.stdscr.getmaxyx()
+        if 0 <= game.player_y < height and 0 <= game.player_x < width:
+            self.stdscr.addch(game.player_y, game.player_x, game.player_char, curses.color_pair(7) | curses.A_BOLD)
 
     def draw_panel(self, game, height, width):
         active_buffs = []
@@ -45,40 +44,82 @@ class GameView:
             status = f"Game started for {game.player_name}! Score: {game.player_score} No active buffs"
 
         y_status = 0
-        x_status = (width - len(status)) // 2
-        self.stdscr.addstr(y_status, x_status, status, curses.color_pair(4) | curses.A_BOLD)
+        x_status = max(0, (width - len(status)) // 2)
+        self.stdscr.addstr(y_status, x_status, status[:width - 1], curses.color_pair(4) | curses.A_BOLD)
 
         hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! ('q' to quit, 'i' to open inventory)>"
         y_hint_controls = y_status + 2
-        x_hint_controls = (width - len(hint_controls)) // 2
-        self.stdscr.addstr(y_hint_controls, x_hint_controls, hint_controls, curses.color_pair(3))
+        x_hint_controls = max(0, (width - len(hint_controls)) // 2)
+        self.stdscr.addstr(y_hint_controls, x_hint_controls, hint_controls[:width - 1], curses.color_pair(3))
 
-    def draw_field(self, height, width):
-        top_line = "┌" + "─" * (width - 2) + "┐"
-        self.stdscr.addstr(self.BORDER_TOP, 0, top_line[:width], curses.color_pair(2) | curses.A_BOLD)
+    def draw_field(self, game, height, width):
+        # Панель интерфейса занимает координаты 0, 1 и 2.
+        # Координата 3 — это первая безопасная линия для вывода графики.
+        safe_y = 3
 
-        bot_line = "└" + "─" * (width - 2) + "┘"
-        self.stdscr.addstr(height - 2, 0, bot_line[:width], curses.color_pair(2) | curses.A_BOLD)
+        # 1. Рисуем коридоры
+        for y, x in game.current_level.corridors:
+            if safe_y <= y < height - 1 and 0 <= x < width - 1:
+                self.stdscr.addch(y, x, '#', curses.color_pair(3))
 
-        for y in range(self.BORDER_TOP + 1, height - 2):
-            if 0 < width:
-                self.stdscr.addch(y, 0, "│", curses.color_pair(2) | curses.A_BOLD)
-            if width > 1:
-                self.stdscr.addch(y, width - 1, "│", curses.color_pair(2) | curses.A_BOLD)
+        # 2. Рисуем комнаты
+        for room in game.current_level.rooms:
+            # Пол комнаты
+            for ry in range(room.y, room.y + room.height):
+                for rx in range(room.x, room.x + room.width):
+                    if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
+                        self.stdscr.addch(ry, rx, '.', curses.color_pair(3))
+
+            # Верхняя и нижняя стены
+            for rx in range(room.x - 1, room.x + room.width + 1):
+                if safe_y <= room.y - 1 < height - 1 and 0 <= rx < width - 1:
+                    self.stdscr.addch(room.y - 1, rx, '─', curses.color_pair(2))
+                if safe_y <= room.y + room.height < height - 1 and 0 <= rx < width - 1:
+                    self.stdscr.addch(room.y + room.height, rx, '─', curses.color_pair(2))
+
+            # Левая и правая стены
+            for ry in range(room.y - 1, room.y + room.height + 1):
+                if safe_y <= ry < height - 1 and 0 <= room.x - 1 < width - 1:
+                    self.stdscr.addch(ry, room.x - 1, '│', curses.color_pair(2))
+                if safe_y <= ry < height - 1 and 0 <= room.x + room.width < width - 1:
+                    self.stdscr.addch(ry, room.x + room.width, '│', curses.color_pair(2))
+
+            # Углы комнат
+            if safe_y <= room.y - 1 < height - 1:
+                if 0 <= room.x - 1 < width - 1:
+                    self.stdscr.addch(room.y - 1, room.x - 1, '┌', curses.color_pair(2))
+                if 0 <= room.x + room.width < width - 1:
+                    self.stdscr.addch(room.y - 1, room.x + room.width, '┐', curses.color_pair(2))
+
+            if safe_y <= room.y + room.height < height - 1:
+                if 0 <= room.x - 1 < width - 1:
+                    self.stdscr.addch(room.y + room.height, room.x - 1, '└', curses.color_pair(2))
+                if 0 <= room.x + room.width < width - 1:
+                    self.stdscr.addch(room.y + room.height, room.x + room.width, '┘', curses.color_pair(2))
+
+        # 3. Выход
+        end_y, end_x = game.current_level.end_pos
+        if safe_y <= end_y < height - 1 and 0 <= end_x < width - 1:
+            self.stdscr.addch(end_y, end_x, '>', curses.color_pair(4) | curses.A_BOLD)
 
     def draw_bottom_panel(self, game, height, width):
         if game.current_weapon == None:
             weapon_str_hint = ""
         else:
-            weapon_str = game.current_weapon.value
-            weapon_str_hint = f"(+{weapon_str})"
+            weapon_str_hint = f"(+{game.current_weapon.value})"
+
         stats = f"Stage: {game.player_stage} Hits: {game.player_hits}/{game.player_max_hits} Str: {game.player_str}{weapon_str_hint} Agi: {game.player_agility} Gold: {game.player_gold} Exp: {game.player_exp}/{game.player_exp_to_level_up} Level: {game.player_level}"
         y_stats = height - 1
         x_stats = max(1, (width - len(stats)) // 2)
-        self.stdscr.addstr(y_stats, x_stats, stats[:width], curses.color_pair(3) | curses.A_BOLD)
+
+        # ЖЕСТКАЯ ЗАЩИТА ОТ СКРОЛЛА: обрезаем строку так, чтобы она точно не задела правый нижний край
+        safe_width = width - x_stats - 1
+        safe_stats = stats[:safe_width]
+
+        self.stdscr.addstr(y_stats, x_stats, safe_stats, curses.color_pair(3) | curses.A_BOLD)
 
     def show_exit_menu(self) -> int:
-        """Возвращает: 0 (Yes), 1 (No), 2 (Back to menu)"""
+        # ... (Код этого метода остается без изменений)
         height, width = self.stdscr.getmaxyx()
         selected = 1
         blink = False
