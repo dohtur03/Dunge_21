@@ -149,9 +149,9 @@ def draw_big_block(stdscr, big_block, width: int, height: int):
         stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
 
 def draw_bottom_panel(stdscr, height: int, width: int):
-    version = "ROGUE 1980 (REMAKE) v.1.0"
+    version = "ROGUE 1980 (REMAKE) v.21.0"
     made_by = "made by:"
-    students = ["flameppe", "sherrelm", "gnarchis", "lorenaji"]
+    students = ["lorenaji", "flameppe", "sherrelm", "gnarchis"]
     
     y_students_last = height - 1
     y_made_by = y_students_last - len(students) - 1
@@ -163,7 +163,7 @@ def draw_bottom_panel(stdscr, height: int, width: int):
     x_made_by = (width - len(made_by)) // 2
     stdscr.addstr(y_made_by, x_made_by, made_by, curses.color_pair(3))
     
-    student_pairs = [4, 5, 6, 7]
+    student_pairs = [7, 1, 5, 6]
     for i, name in enumerate(students):
         y = y_made_by + 1 + i
         x = (width - len(name)) // 2

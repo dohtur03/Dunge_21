@@ -31,6 +31,7 @@ big_year = [
 
 def loading(stdscr, y_offset: int = 0) -> None:
     height, width = stdscr.getmaxyx()
+    draw_speed = 20
     big_logo_width = max(len(line) for line in big_logo)
 
     start_y = y_offset
@@ -41,7 +42,7 @@ def loading(stdscr, y_offset: int = 0) -> None:
         if 0 <= y < height:
             stdscr.addstr(y, start_x, line, curses.color_pair(1))
         stdscr.refresh()
-        curses.napms(180)
+        curses.napms(draw_speed)
 
     big_year_width = max(len(line) for line in big_year)
     big_year_y = start_y + len(big_logo) + 2
@@ -52,9 +53,10 @@ def loading(stdscr, y_offset: int = 0) -> None:
         if 0 <= y < height:
             stdscr.addstr(y, big_year_x, line, curses.color_pair(1))
         stdscr.refresh()
-        curses.napms(180)
+        curses.napms(draw_speed)
 
 def run_loader(stdscr) -> None:
+    render_delay = 300
     curses.curs_set(0)
     stdscr.clear()
     stdscr.refresh()
@@ -64,7 +66,7 @@ def run_loader(stdscr) -> None:
 
     loading(stdscr, y_offset=2)
 
-    curses.napms(600)
+    curses.napms(render_delay)
 
     stdscr.clear()
     stdscr.refresh()
