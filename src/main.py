@@ -120,22 +120,24 @@ def main(stdscr):
         else:
             result = "quit_game"
 
-        if result == "quit_game" and game is not None:
-            real_score = game.get_score()
-            save_score(game.player_name, real_score)
-            h, w = stdscr.getmaxyx()
-            stdscr.clear()
-            stdscr.addstr(h // 2, (w - 30) // 2, f"Saved: {game.player_name} - {real_score} points",
-                          curses.color_pair(4) | curses.A_BOLD)
-            stdscr.refresh()
-            stdscr.timeout(-1)
-            stdscr.getch()
-            game = None
-            game_status = "inactive"
+        if result == "quit_game":
+            if game is not None:
+                real_score = game.get_score()
+                save_score(game.player_name, real_score)
+                h, w = stdscr.getmaxyx()
+                stdscr.clear()
+                stdscr.addstr(h // 2, (w - 30) // 2, f"Saved: {game.player_name} - {real_score} points",
+                              curses.color_pair(4) | curses.A_BOLD)
+                stdscr.refresh()
+                stdscr.timeout(-1)
+                stdscr.getch()
             break
 
         elif result == "back_to_menu":
             continue
+
+        if __name__ == "__main__":
+            curses.wrapper(main)
 
 
 if __name__ == "__main__":

@@ -297,7 +297,7 @@ class Menu():
 
     def exit_menu(self) -> bool:
         height, width = self.stdscr.getmaxyx()
-        selected = 1
+        selected = 0
         blink = False
 
         while True:

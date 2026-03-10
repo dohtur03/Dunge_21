@@ -121,7 +121,7 @@ class GameView:
     def show_exit_menu(self) -> int:
         # ... (Код этого метода остается без изменений)
         height, width = self.stdscr.getmaxyx()
-        selected = 1
+        selected = 0
         blink = False
 
         while True:
