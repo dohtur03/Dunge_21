@@ -25,11 +25,6 @@ class Player:
         self.potion_effects = []
         self.inventory = Inventory(name, game_ref)
 
-        # Выдаем стартовые предметы
-        for category_name in Item.items:
-            for i in range(5):
-                self.inventory.category_items[category_name][i] = Item(**random.choice(Item.items[category_name]))
-
     def update_stats(self):
         self.total_str = self.str + (self.current_weapon.value if self.current_weapon is not None else 0)
 

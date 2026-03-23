@@ -102,7 +102,7 @@ class Game:
                 category = drop_info["category"]
                 item = drop_info["item"]
 
-                # Ищем пустой слот от 0 до 9
+                # Ищем пустой слот (теперь их 9 по ТЗ)
                 item_added = False
                 for i in range(9):
                     if self.player.inventory.category_items[category][i] is None:

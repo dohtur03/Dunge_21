@@ -22,7 +22,7 @@ class InventoryView:
             blink = False
 
             while True:
-                game.update_effects()
+                game.player.update_effects()
                 game.player_score = int(time.time() - game.start_time)
 
                 # Перерисовываем игру на фоне
@@ -37,7 +37,7 @@ class InventoryView:
 
                 pointer = "▶"
                 start_y = 3
-                for i, category in enumerate(game.inventory.categories):
+                for i, category in enumerate(game.player.inventory.categories):
                     y = start_y + i
                     line = f"{pointer} {category}" if i == selected else f"  {category}"
                     attr = (curses.color_pair(
@@ -60,11 +60,11 @@ class InventoryView:
                 key = self.stdscr.getch()
 
                 if key == curses.KEY_UP:
-                    selected = (selected - 1) % len(game.inventory.categories)
+                    selected = (selected - 1) % len(game.player.inventory.categories)
                 elif key == curses.KEY_DOWN:
-                    selected = (selected + 1) % len(game.inventory.categories)
+                    selected = (selected + 1) % len(game.player.inventory.categories)
                 elif key in (curses.KEY_ENTER, 10, 13):
-                    selected_category = game.inventory.categories[selected]
+                    selected_category = game.player.inventory.categories[selected]
 
                     if selected_category == "Back":
                         overlay.clear()
@@ -90,14 +90,14 @@ class InventoryView:
         win = curses.newwin(h, w, win_y, win_x)
         win.bkgdset(' ', curses.color_pair(8) | curses.A_BOLD)
 
-        slots = game.inventory.category_items[category]
+        slots = game.player.inventory.category_items[category]
         selected = 0
         blink = False
         title = f"   🔒 {category.upper()} 🔒"
         back_index = 9
 
         while True:
-            game.update_effects()
+            game.player.update_effects()
             game.player_score = int(time.time() - game.start_time)
             self.game_view.render(game)
 
@@ -111,7 +111,11 @@ class InventoryView:
             for idx in range(9):
                 item = slots[idx]
                 item_label = "<none>" if item is None else str(item)
-                equipped_tag = " (equipped)" if (category == "Weapon" and item == game.current_weapon) else ""
+
+                # ИСПРАВЛЕННАЯ СТРОКА: добавлено item is not None
+                equipped_tag = " (equipped)" if (
+                            category == "Weapon" and item is not None and item == game.player.current_weapon) else ""
+
                 line = f"{idx + 1}. {item_label}{equipped_tag}".ljust(50)[:w - 4]
 
                 y = start_y + idx
