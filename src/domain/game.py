@@ -1,4 +1,5 @@
 import time
+import random
 from domain.level import Level
 from domain.player import Player
 from domain.inventory import Inventory
@@ -26,7 +27,8 @@ class Game:
         return self.player_score
 
     def can_move(self, target_y: int, target_x: int) -> bool:
-        if (target_y, target_x) in self.current_level.corridors: return True
+        if (target_y, target_x) in self.current_level.corridors:
+            return True
         for room in self.current_level.rooms:
             if room.x <= target_x < room.x + room.width and room.y <= target_y < room.y + room.height:
                 return True
@@ -38,14 +40,16 @@ class Game:
         self.action_msg = ""
         turn_taken = False
 
-        if self.player.hits <= 0: return "died"
+        if self.player.hits <= 0:
+            return "died"
 
         # Если игрок спит, он пропускает ход, но враги ходят!
         if self.player.sleep_turns > 0:
             self.player.sleep_turns -= 1
             self.action_msg = "You are SLEEPING! Zzz..."
             self._process_enemies()
-            if self.player.hits <= 0: return "died"
+            if self.player.hits <= 0:
+                return "died"
             return "continue"
 
         new_y, new_x = self.player.y, self.player.x
@@ -76,7 +80,9 @@ class Game:
                     self.current_level.enemies.remove(enemy_hit)
                     self.player.exp += enemy_hit.exp_reward
                     self.player.check_level_up()
-                    self.action_msg = f"You killed {enemy_hit.name}!"
+                    gold_reward = random.randint(10, 30)
+                    self.player.gold += gold_reward
+                    self.action_msg = f"You killed {enemy_hit.name} and found {gold_reward} gold!"
                 else:
                     self.action_msg = f"You hit {enemy_hit.name}!"
             else:
@@ -89,10 +95,27 @@ class Game:
                 turn_taken = True
 
             pos = (self.player.y, self.player.x)
-            if pos in self.current_level.gold_drops:
-                self.player.gold += self.current_level.gold_drops[pos]
-                del self.current_level.gold_drops[pos]
 
+            # 1. ПОДБОР ПРЕДМЕТОВ
+            if pos in self.current_level.item_drops:
+                drop_info = self.current_level.item_drops[pos]
+                category = drop_info["category"]
+                item = drop_info["item"]
+
+                # Ищем пустой слот от 0 до 9
+                item_added = False
+                for i in range(9):
+                    if self.player.inventory.category_items[category][i] is None:
+                        self.player.inventory.category_items[category][i] = item
+                        del self.current_level.item_drops[pos]
+                        self.action_msg = f"Picked up: {item.name}!"
+                        item_added = True
+                        break
+
+                if not item_added:
+                    self.action_msg = f"Inventory full! Can't pick up {item.name}."
+
+            # 2. Переход на следующий уровень
             if pos == self.current_level.end_pos:
                 self.player_stage += 1
                 self.generate_new_stage()
@@ -102,7 +125,8 @@ class Game:
         if turn_taken:
             self._process_enemies()
 
-        if self.player.hits <= 0: return "died"
+        if self.player.hits <= 0:
+            return "died"
         return "continue"
 
     def _process_enemies(self):

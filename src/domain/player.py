@@ -7,10 +7,10 @@ from domain.item import Item
 class Player:
     def __init__(self, name: str, game_ref):
         self.name = name
+        self.game = game_ref
         self.char = "☺"
         self.y = 0
         self.x = 0
-
         self.hits = 50
         self.max_hits = 50
         self.str = 10
@@ -20,11 +20,9 @@ class Player:
         self.exp = 0
         self.exp_to_level_up = 50
         self.level = 1
-        self.sleep_turns = 0  # <--- ДОБАВЬ ЭТУ СТРОКУ
+        self.sleep_turns = 0
         self.current_weapon = None
         self.potion_effects = []
-
-        # Инвентарь теперь жестко привязан к игроку
         self.inventory = Inventory(name, game_ref)
 
         # Выдаем стартовые предметы
@@ -81,6 +79,9 @@ class Player:
 
         self.max_hits -= max_hp_bonus
         self.hits -= max_hp_bonus
+
+        if self.hits <= 0:
+            self.hits = 1
         self.str -= str_bonus
         self.agility -= agi_bonus
 
@@ -89,13 +90,42 @@ class Player:
         if item is None: return ""
 
         msg = ""
+
         if category == "Weapon":
             if self.current_weapon is item:
                 self.current_weapon = None
                 msg = f"{item.name} unequipped"
             else:
+                # Если уже есть надетое оружие - выбрасываем его!
+                if self.current_weapon is not None:
+                    old_weapon = self.current_weapon
+
+                    # Ищем свободную соседнюю клетку для выброса
+                    drop_y, drop_x = self.y, self.x
+                    for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
+                        ny, nx = self.y + dy, self.x + dx
+                        # Проверяем, можно ли туда ходить и нет ли там уже другого предмета
+                        if self.game.can_move(ny, nx) and (ny, nx) not in self.game.current_level.item_drops:
+                            drop_y, drop_x = ny, nx
+                            break
+
+                    # Кладем старое оружие на пол уровня
+                    self.game.current_level.item_drops[(drop_y, drop_x)] = {
+                        "category": "Weapon",
+                        "item": old_weapon
+                    }
+
+                    # Удаляем старое оружие из инвентаря
+                    for i in range(9):
+                        if self.inventory.category_items["Weapon"][i] is old_weapon:
+                            self.inventory.category_items["Weapon"][i] = None
+                            break
+
+                    msg = f"Swapped to {item.name}! {old_weapon.name} dropped."
+                else:
+                    msg = f"{item.name} equipped"
+
                 self.current_weapon = item
-                msg = f"{item.name} equipped"
             self.update_stats()
 
         elif category == "Food":

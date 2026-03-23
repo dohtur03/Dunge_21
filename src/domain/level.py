@@ -1,5 +1,6 @@
 import random
-from domain.enemy import Zombie, Vampire, Ghost, Ogre, SnakeMage
+from domain.enemy import *
+from domain.item import Item
 
 class Room:
     def __init__(self, x: int, y: int, width: int, height: int):
@@ -11,8 +12,8 @@ class Room:
         self.is_start = False
         self.is_end = False
 
-        self.enemies = []
-        self.items = []
+        self.enemies: list[Enemy] = []
+        self.item_drops: dict[tuple[int, int], dict] = {}
 
     @property
     def center(self) -> tuple[int, int]:
@@ -32,9 +33,9 @@ class Level:
         self.rooms: list[Room] = []
         self.corridors: set[tuple[int, int]] = set()
 
-        # Коллекции для хранения объектов на карте
         self.enemies: list[Enemy] = []
-        self.gold_drops: dict[tuple[int, int], int] = {}  # Словарь: координаты (y, x) -> количество золота
+
+        self.item_drops: dict[tuple[int, int], dict] = {}
 
         self.start_pos = (0, 0)
         self.end_pos = (0, 0)
@@ -112,17 +113,26 @@ class Level:
                 if (ey, ex) != self.end_pos:
                     EnemyClass = random.choice(enemy_classes)
                     enemy = EnemyClass(ey, ex, room)
+
+            if random.random() < 0.4:
+                iy = random.randint(room.y, room.y + room.height - 1)
+                ix = random.randint(room.x, room.x + room.width - 1)
+
+                if (iy, ix) != self.end_pos and (iy, ix) not in self.item_drops:
+                    category = random.choice(list(Item.items.keys()))
+                    item_data = random.choice(Item.items[category])
+
+                    # Создаем предмет четко по твоему классу Item
+                    item = Item(
+                        name=item_data["name"],
+                        effect_duration=item_data["effect_duration"],
+                        effect_type=item_data["effect_type"],
+                        value=item_data["value"],
+                        description_template=item_data["description_template"]
+                    )
+
+                    self.item_drops[(iy, ix)] = {
+                        "category": category,
+                        "item": item
+                    }
                     self.enemies.append(enemy)
-
-            for _ in range(random.randint(0, 2)):
-                gy = random.randint(room.y, room.y + room.height - 1)
-                gx = random.randint(room.x, room.x + room.width - 1)
-                if (gy, gx) != self.end_pos:
-                    self.gold_drops[(gy, gx)] = random.randint(10, 50)
-            # Спавним от 0 до 2 кучек золота
-            for _ in range(random.randint(0, 2)):
-                gy = random.randint(room.y, room.y + room.height - 1)
-                gx = random.randint(room.x, room.x + room.width - 1)
-
-                if (gy, gx) != self.end_pos:
-                    self.gold_drops[(gy, gx)] = random.randint(10, 50)

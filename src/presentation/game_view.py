@@ -110,10 +110,14 @@ class GameView:
         if safe_y <= end_y < height - 1 and 0 <= end_x < width - 1:
             self.stdscr.addch(end_y, end_x, '>', curses.color_pair(4) | curses.A_BOLD)
 
-        # 4. Рисуем золото (Символ '$', цвет 4 - обычно желтый)
-        for (gy, gx), amount in game.current_level.gold_drops.items():
-            if safe_y <= gy < height - 1 and 0 <= gx < width - 1:
-                self.stdscr.addch(gy, gx, '$', curses.color_pair(4) | curses.A_BOLD)
+        # 4. Рисуем предметы на полу
+        char_map = {"Weapon": ")", "Potion": "!", "Scroll": "?", "Food": "%"}
+
+        for (iy, ix), drop_info in game.current_level.item_drops.items():
+            if safe_y <= iy < height - 1 and 0 <= ix < width - 1:
+                char = char_map.get(drop_info["category"], "*")
+                # Используем цвет 6 (бирюзовый) или любой доступный
+                self.stdscr.addch(iy, ix, char, curses.color_pair(6) | curses.A_BOLD)
 
         # 5. Рисуем врагов
         for enemy in game.current_level.enemies:
