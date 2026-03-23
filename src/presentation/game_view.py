@@ -25,13 +25,16 @@ class GameView:
 
     def draw_player(self, game):
         height, width = self.stdscr.getmaxyx()
-        if 0 <= game.player_y < height and 0 <= game.player_x < width:
-            self.stdscr.addch(game.player_y, game.player_x, game.player_char, curses.color_pair(7) | curses.A_BOLD)
+        # Теперь координаты и символ берутся из объекта player: game.player.y, game.player.x, game.player.char
+        if 0 <= game.player.y < height and 0 <= game.player.x < width:
+            self.stdscr.addch(game.player.y, game.player.x, game.player.char, curses.color_pair(7) | curses.A_BOLD)
 
     def draw_panel(self, game, height, width):
         active_buffs = []
         current_time = time.time()
-        for effect in game.potion_effects:
+
+        # Берем эффекты зелий теперь из игрока!
+        for effect in game.player.potion_effects:
             if current_time < effect["end_time"]:
                 active_buffs.append(f"{effect['type'].upper()}+{effect['value']}")
 
@@ -39,9 +42,9 @@ class GameView:
             buffs_text = " | ".join(active_buffs[:3])
             if len(active_buffs) > 3:
                 buffs_text += " + ..."
-            status = f"Game started for {game.player_name}! Score: {game.player_score} Active buffs: {buffs_text}"
+            status = f"Game started for {game.player.name}! Score: {game.player_score} Active buffs: {buffs_text}"
         else:
-            status = f"Game started for {game.player_name}! Score: {game.player_score} No active buffs"
+            status = f"Game started for {game.player.name}! Score: {game.player_score} No active buffs"
 
         y_status = 0
         x_status = max(0, (width - len(status)) // 2)
@@ -114,16 +117,18 @@ class GameView:
                 self.stdscr.addch(enemy.y, enemy.x, enemy.char, curses.color_pair(1) | curses.A_BOLD)
 
     def draw_bottom_panel(self, game, height, width):
-        if game.current_weapon == None:
+        # Теперь проверяем наличие оружия у ИГРОКА (game.player)
+        if game.player.current_weapon is None:
             weapon_str_hint = ""
         else:
-            weapon_str_hint = f"(+{game.current_weapon.value})"
+            weapon_str_hint = f"(+{game.player.current_weapon.value})"
 
-        stats = f"Stage: {game.player_stage} Hits: {game.player_hits}/{game.player_max_hits} Str: {game.player_str}{weapon_str_hint} Agi: {game.player_agility} Gold: {game.player_gold} Exp: {game.player_exp}/{game.player_exp_to_level_up} Level: {game.player_level}"
+        # Вся статистика (кроме Stage) тоже теперь берется из game.player
+        stats = f"Stage: {game.player_stage} Hits: {game.player.hits}/{game.player.max_hits} Str: {game.player.str}{weapon_str_hint} Agi: {game.player.agility} Gold: {game.player.gold} Exp: {game.player.exp}/{game.player.exp_to_level_up} Level: {game.player.level}"
+
         y_stats = height - 1
         x_stats = max(1, (width - len(stats)) // 2)
 
-        # ЖЕСТКАЯ ЗАЩИТА ОТ СКРОЛЛА: обрезаем строку так, чтобы она точно не задела правый нижний край
         safe_width = width - x_stats - 1
         safe_stats = stats[:safe_width]
 

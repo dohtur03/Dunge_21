@@ -123,10 +123,12 @@ def main(stdscr):
         if result == "quit_game":
             if game is not None:
                 real_score = game.get_score()
-                save_score(game.player_name, real_score)
+                # Меняем game.player_name на game.player.name
+                save_score(game.player.name, real_score)
                 h, w = stdscr.getmaxyx()
                 stdscr.clear()
-                stdscr.addstr(h // 2, (w - 30) // 2, f"Saved: {game.player_name} - {real_score} points",
+                # Здесь тоже меняем на game.player.name
+                stdscr.addstr(h // 2, (w - 30) // 2, f"Saved: {game.player.name} - {real_score} points",
                               curses.color_pair(4) | curses.A_BOLD)
                 stdscr.refresh()
                 stdscr.timeout(-1)
