@@ -11,8 +11,8 @@ class Player:
         self.y = 0
         self.x = 0
 
-        self.hits = 10
-        self.max_hits = 20
+        self.hits = 50
+        self.max_hits = 50
         self.str = 10
         self.total_str = 10
         self.agility = 10
@@ -20,7 +20,7 @@ class Player:
         self.exp = 0
         self.exp_to_level_up = 50
         self.level = 1
-
+        self.sleep_turns = 0  # <--- ДОБАВЬ ЭТУ СТРОКУ
         self.current_weapon = None
         self.potion_effects = []
 

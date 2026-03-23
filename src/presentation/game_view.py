@@ -50,7 +50,11 @@ class GameView:
         x_status = max(0, (width - len(status)) // 2)
         self.stdscr.addstr(y_status, x_status, status[:width - 1], curses.color_pair(4) | curses.A_BOLD)
 
-        hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! ('q' to quit, 'i' to open inventory)>"
+        if hasattr(game, 'action_msg') and game.action_msg:
+            hint_controls = f">>> {game.action_msg} <<<"
+        else:
+            hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! ('q' to quit, 'i' to open inventory)>"
+
         y_hint_controls = y_status + 2
         x_hint_controls = max(0, (width - len(hint_controls)) // 2)
         self.stdscr.addstr(y_hint_controls, x_hint_controls, hint_controls[:width - 1], curses.color_pair(3))
@@ -111,11 +115,12 @@ class GameView:
             if safe_y <= gy < height - 1 and 0 <= gx < width - 1:
                 self.stdscr.addch(gy, gx, '$', curses.color_pair(4) | curses.A_BOLD)
 
-        # 5. Рисуем врагов (Цвет 1 - красный)
+        # 5. Рисуем врагов
         for enemy in game.current_level.enemies:
             if safe_y <= enemy.y < height - 1 and 0 <= enemy.x < width - 1:
-                self.stdscr.addch(enemy.y, enemy.x, enemy.char, curses.color_pair(1) | curses.A_BOLD)
-
+                if enemy.is_visible():
+                    self.stdscr.addch(enemy.y, enemy.x, enemy.char,
+                                      curses.color_pair(enemy.color_pair) | curses.A_BOLD)
     def draw_bottom_panel(self, game, height, width):
         # Теперь проверяем наличие оружия у ИГРОКА (game.player)
         if game.player.current_weapon is None:

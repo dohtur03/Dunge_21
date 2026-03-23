@@ -7,6 +7,7 @@ from domain.item import Item
 
 class Game:
     def __init__(self, player_name: str):
+        self.action_msg = ""
         self.start_time = time.time()
         self.player_score = 0
         self.player_stage = 1
@@ -34,8 +35,18 @@ class Game:
     def process_turn(self, key) -> str | None:
         self.player.update_effects()
         self.player_score = int(time.time() - self.start_time)
+        self.action_msg = ""
+        turn_taken = False
 
         if self.player.hits <= 0: return "died"
+
+        # Если игрок спит, он пропускает ход, но враги ходят!
+        if self.player.sleep_turns > 0:
+            self.player.sleep_turns -= 1
+            self.action_msg = "You are SLEEPING! Zzz..."
+            self._process_enemies()
+            if self.player.hits <= 0: return "died"
+            return "continue"
 
         new_y, new_x = self.player.y, self.player.x
 
@@ -59,18 +70,23 @@ class Game:
                 break
 
         if enemy_hit is not None:
-            enemy_hit.hp -= self.player.total_str
-            if enemy_hit.hp <= 0:
-                self.current_level.enemies.remove(enemy_hit)
-                self.player.exp += enemy_hit.exp_reward
-                self.player.check_level_up()
+            hit_success = enemy_hit.take_damage(self.player.total_str)
+            if hit_success:
+                if enemy_hit.hp <= 0:
+                    self.current_level.enemies.remove(enemy_hit)
+                    self.player.exp += enemy_hit.exp_reward
+                    self.player.check_level_up()
+                    self.action_msg = f"You killed {enemy_hit.name}!"
+                else:
+                    self.action_msg = f"You hit {enemy_hit.name}!"
             else:
-                self.player.hits -= enemy_hit.strength
-                if self.player.hits <= 0: return "died"
-            return "continue"
+                self.action_msg = f"{enemy_hit.name} DODGED!"
+            turn_taken = True
 
-        if self.can_move(new_y, new_x):
-            self.player.y, self.player.x = new_y, new_x
+        elif self.can_move(new_y, new_x):
+            if (self.player.y, self.player.x) != (new_y, new_x):
+                self.player.y, self.player.x = new_y, new_x
+                turn_taken = True
 
             pos = (self.player.y, self.player.x)
             if pos in self.current_level.gold_drops:
@@ -82,7 +98,17 @@ class Game:
                 self.generate_new_stage()
                 return "stage_cleared"
 
+                # Как только игрок сделал действие - ходят враги
+        if turn_taken:
+            self._process_enemies()
+
+        if self.player.hits <= 0: return "died"
         return "continue"
+
+    def _process_enemies(self):
+        for enemy in self.current_level.enemies:
+            if enemy.hp > 0:
+                enemy.act(self)
 
     # Прокси-методы для инвентаря (чтобы не переписывать логику меню инвентаря)
     def use_item(self, category: str, slot_idx: int) -> str:

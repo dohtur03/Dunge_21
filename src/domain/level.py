@@ -1,5 +1,5 @@
 import random
-from domain.enemy import Enemy
+from domain.enemy import Zombie, Vampire, Ghost, Ogre, SnakeMage
 
 class Room:
     def __init__(self, x: int, y: int, width: int, height: int):
@@ -100,30 +100,25 @@ class Level:
                 self.corridors.add((y2, x))
 
     def _spawn_entities(self):
-        """Раскидывает монстров и золото по комнатам"""
-        enemy_templates = [
-            {"name": "Goblin", "char": "g", "hp": 5, "strength": 2, "exp": 10},
-            {"name": "Skeleton", "char": "s", "hp": 8, "strength": 3, "exp": 15},
-            {"name": "Orc", "char": "O", "hp": 15, "strength": 5, "exp": 30}
-        ]
+        enemy_classes = [Zombie, Vampire, Ghost, Ogre, SnakeMage]
 
         for room in self.rooms:
-            # В стартовой комнате всегда безопасно
-            if room.is_start:
-                continue
+            if room.is_start: continue
 
-            # Спавним от 0 до 2 врагов в комнате
             for _ in range(random.randint(0, 2)):
                 ey = random.randint(room.y, room.y + room.height - 1)
                 ex = random.randint(room.x, room.x + room.width - 1)
 
-                # Исключаем спавн прямо на выходе
                 if (ey, ex) != self.end_pos:
-                    template = random.choice(enemy_templates)
-                    enemy = Enemy(template["name"], template["char"], ey, ex,
-                                  template["hp"], template["strength"], template["exp"])
+                    EnemyClass = random.choice(enemy_classes)
+                    enemy = EnemyClass(ey, ex, room)
                     self.enemies.append(enemy)
 
+            for _ in range(random.randint(0, 2)):
+                gy = random.randint(room.y, room.y + room.height - 1)
+                gx = random.randint(room.x, room.x + room.width - 1)
+                if (gy, gx) != self.end_pos:
+                    self.gold_drops[(gy, gx)] = random.randint(10, 50)
             # Спавним от 0 до 2 кучек золота
             for _ in range(random.randint(0, 2)):
                 gy = random.randint(room.y, room.y + room.height - 1)
