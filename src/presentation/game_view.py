@@ -230,3 +230,28 @@ class GameView:
                 selected = (selected + 1) % len(options_local)
             elif key in (curses.KEY_ENTER, 10, 13):
                 return selected
+
+    def show_victory_screen(self, game):
+        height, width = self.stdscr.getmaxyx()
+        self.stdscr.clear()
+
+        # Красивые надписи
+        title = "👑 YOU CONQUERED DUNGEON 21! 👑"
+        subtitle = "The darkness recedes as you step into the sunlight..."
+        stats = f"Final Score: {game.player_score} | Gold: {game.player.gold} | Level: {game.player.level}"
+        hint = "< Press any key to return to the real world >"
+
+        # Центрируем текст
+        self.stdscr.addstr(height // 2 - 3, max(0, (width - len(title)) // 2), title,
+                           curses.color_pair(2) | curses.A_BOLD)
+        self.stdscr.addstr(height // 2 - 1, max(0, (width - len(subtitle)) // 2), subtitle, curses.color_pair(3))
+        self.stdscr.addstr(height // 2 + 1, max(0, (width - len(stats)) // 2), stats,
+                           curses.color_pair(4) | curses.A_BOLD)
+        self.stdscr.addstr(height // 2 + 4, max(0, (width - len(hint)) // 2), hint,
+                           curses.color_pair(3) | curses.A_BLINK)
+
+        self.stdscr.refresh()
+
+        # Ждем любого нажатия клавиши
+        self.stdscr.timeout(-1)
+        self.stdscr.getch()

@@ -118,6 +118,10 @@ class Game:
             # 2. Переход на следующий уровень
             if pos == self.current_level.end_pos:
                 self.player_stage += 1
+
+                if self.player_stage > 21:
+                    return "win"  # Возвращаем специальный статус победы
+
                 self.generate_new_stage()
                 return "stage_cleared"
 

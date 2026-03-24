@@ -37,6 +37,10 @@ def run_game_loop(stdscr, game, view):
             view.logger.show_popup(stdscr, death_message)
             return "quit_game"
 
+        if action == "win":
+            view.show_victory_screen(game)
+            break  # Выходим из игрового цикла (вернут в главное меню)
+
         elif action == "request_quit":
             option = view.show_exit_menu()
             if option == 0:  # Yes
