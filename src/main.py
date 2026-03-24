@@ -5,7 +5,6 @@ from domain.game import Game
 from presentation.game_view import GameView
 from presentation.loader import run_loader
 from datalayer.score import save_score
-from presentation.log import death_message, get_random_message
 from presentation.inventory_view import InventoryView
 
 
@@ -15,26 +14,25 @@ def run_game_loop(stdscr, game, view):
         # 1. Отрисовываем текущее состояние (View)
         view.render(game)
 
-        # 2. Проверяем, нужно ли показать случайный попап
-        current_time = time.time()
-        if view.logger.needs_popup(current_time):
-            msg = get_random_message()
-            view.logger.show_popup(stdscr, msg)
-            view.logger.last_popup = current_time
-
-        # 3. Ждем нажатия клавиши от пользователя
+        # 2. Ждем нажатия клавиши от пользователя
         stdscr.timeout(100)
         key = stdscr.getch()
 
         if key == -1:
             continue
 
-        # 4. Передаем клавишу в бизнес-логику для пересчета (Model)
+        # 3. Передаем клавишу в бизнес-логику для пересчета (Model)
         action = game.process_turn(key)
 
-        # 5. Обрабатываем результаты хода
+        # 4. Обрабатываем результаты хода
         if action == "died":
-            view.logger.show_popup(stdscr, death_message)
+            # Рисуем простой и стильный экран смерти без логгера
+            stdscr.clear()
+            msg = "💀 YOU DIED! GAME OVER 💀"
+            h, w = stdscr.getmaxyx()
+            stdscr.addstr(h // 2, (w - len(msg)) // 2, msg, curses.color_pair(1) | curses.A_BOLD)
+            stdscr.refresh()
+            time.sleep(2.5)  # Даем 2.5 секунды на осознание трагедии
             return "quit_game"
 
         if action == "win":
@@ -141,9 +139,6 @@ def main(stdscr):
 
         elif result == "back_to_menu":
             continue
-
-        if __name__ == "__main__":
-            curses.wrapper(main)
 
 
 if __name__ == "__main__":

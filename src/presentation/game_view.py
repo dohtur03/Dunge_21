@@ -1,6 +1,5 @@
 import curses
 import time
-from presentation.log import GameLog
 
 
 class GameView:
@@ -10,7 +9,6 @@ class GameView:
         # Опускаем границу защиты текста до 2-й строки,
         # чтобы 3-я строка была свободна для отрисовки верхних стен комнат
         self.BORDER_TOP = 2
-        self.logger = GameLog()
 
     def render(self, game):
         self.stdscr.clear()

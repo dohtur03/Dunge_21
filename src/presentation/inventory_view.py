@@ -151,10 +151,10 @@ class InventoryView:
                 # Передаем команду "использовать" в бизнес-логику
                 msg = game.use_item(category, selected)
                 if msg:
-                    self.game_view.logger.show_popup(self.stdscr, msg)
+                    game.action_msg = msg  # Передаем сообщение прямо в строку статуса
 
             elif key == curses.KEY_DC:  # Delete
                 # Передаем команду "выбросить" в бизнес-логику
                 msg = game.drop_item(category, selected)
                 if msg:
-                    self.game_view.logger.show_popup(self.stdscr, msg)
+                    game.action_msg = msg  # Передаем сообщение прямо в строку статуса
