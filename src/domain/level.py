@@ -66,10 +66,9 @@ class Level:
                 new_room = Room(room_x, room_y, room_w, room_h)
                 self.rooms.append(new_room)
 
-        self.rooms[0].is_start = True
-        self.rooms[-1].is_end = True
-        self.start_pos = self.rooms[0].center
-        self.end_pos = self.rooms[-1].center
+        start_room, exit_room = self._assign_start_and_exit()
+        self.start_pos = start_room.center
+        self.end_pos = exit_room.center
 
         for row in range(3):
             for col in range(3):
@@ -100,8 +99,35 @@ class Level:
             for x in range(min(x1, x2), max(x1, x2) + 1):
                 self.corridors.add((y2, x))
 
+    def _assign_start_and_exit(self):
+        """Случайно выбирает комнаты для входа и выхода из уровня"""
+        if len(self.rooms) < 2:
+            # Техническая страховка: если комната одна, она и старт, и финиш
+            start_room = self.rooms[0]
+            exit_room = self.rooms[0]
+        else:
+            # 1. Выбираем 2 абсолютно разные комнаты из списка
+            start_room, exit_room = random.sample(self.rooms, 2)
+
+        # 2. Обновляем статус всех комнат
+        for room in self.rooms:
+            room.is_start = (room == start_room)
+
+        # 3. Находим случайную свободную точку в стартовой комнате для игрока
+        self.player_start_pos = (
+            random.randint(start_room.y, start_room.y + start_room.height - 1),
+            random.randint(start_room.x, start_room.x + start_room.width - 1)
+        )
+
+        # 4. Находим случайную точку в финишной комнате для выхода (>)
+        # Если комнаты разные, выход никогда не окажется под игроком
+        self.end_pos = (
+            random.randint(exit_room.y, exit_room.y + exit_room.height - 1),
+            random.randint(exit_room.x, exit_room.x + exit_room.width - 1)
+        )
+
+        return  start_room, exit_room
     def _spawn_entities(self):
-        # 1. ВСЕ враги доступны с 1-го этажа (Русская рулетка!)
         available_classes = [Zombie, Ghost, Vampire, SnakeMage, Ogre]
 
         for room in self.rooms:
