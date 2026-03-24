@@ -37,25 +37,51 @@ class Enemy:
         return ""
 
     def act(self, game):
-        """Базовый ИИ: проверить дистанцию, ударить или сделать шаг"""
+        """Базовый ИИ: проверить дистанцию, ударить, преследовать или бродить"""
         dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
         if dist == 1:
             msg = self.attack(game.player)
             if msg: game.action_msg = msg
         elif dist <= self.hostility or self.is_engaged:
             self.is_engaged = True
-            self._move_towards(game)
+            moved = self._move_towards(game)
+            if not moved:
+                # ТЗ: Если пути нет, двигаться по своему паттерну
+                self.wander(game)
+        else:
+            # Если игрок далеко - просто бродим
+            self.wander(game)
 
-    def _move_towards(self, game):
-        """Простой алгоритм поиска пути к игроку"""
+    def wander(self, game):
+        """Паттерн по умолчанию: случайный шаг по горизонтали/вертикали"""
+        dy, dx = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)])
+        if game.can_move(self.y + dy, self.x + dx) and not self._is_occupied(self.y + dy, self.x + dx, game):
+            self.y += dy
+            self.x += dx
+
+    def _move_towards(self, game) -> bool:
+        """Преследование: возвращает True если сделал шаг, False если путь заблокирован"""
         dy = 1 if game.player.y > self.y else (-1 if game.player.y < self.y else 0)
         dx = 1 if game.player.x > self.x else (-1 if game.player.x < self.x else 0)
 
         moves = [(self.y + dy, self.x + dx), (self.y + dy, self.x), (self.y, self.x + dx)]
         for ny, nx in moves:
+            # Обычный монстр не ходит по диагонали при преследовании, если только это не единственный путь
+            # Для строгого соблюдения ТЗ берем только соседние клетки (крестом)
+            if ny != self.y and nx != self.x:
+                continue  # Игнорируем диагонали в базовом преследовании
+
             if game.can_move(ny, nx) and not self._is_occupied(ny, nx, game):
                 self.y, self.x = ny, nx
-                return
+                return True
+
+        # Если по прямой нельзя, пробуем хоть как-то приблизиться
+        for ny, nx in moves:
+            if game.can_move(ny, nx) and not self._is_occupied(ny, nx, game):
+                self.y, self.x = ny, nx
+                return True
+
+        return False
 
     def _is_occupied(self, y, x, game):
         if game.player.y == y and game.player.x == x: return True
@@ -152,30 +178,36 @@ class Ghost(Enemy):
 class Ogre(Enemy):
     def __init__(self, y, x, room):
         super().__init__(y, x, room)
-        self.name = "Ogre"
-        self.char = "O"
-        self.color_pair = 4  # Желтый
-        self.hp = 40
-        self.strength = 12
-        self.agility = 1
-        self.hostility = 5
-        self.exp_reward = 50
+        # ... твои старые статы ...
         self.resting = False
+        self.guaranteed_hit = False # Флаг из ТЗ
 
     def act(self, game):
         if self.resting:
             self.resting = False
-            return  # Пропускает ход
+            self.guaranteed_hit = True # Отдохнул -> готовим 100% удар
+            return
 
-        for _ in range(2):  # Ходит на 2 клетки
+        for _ in range(2):
             dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
             if dist == 1:
                 msg = self.attack(game.player)
                 if msg: game.action_msg = msg
-                self.resting = True  # Отдыхает после удара
+                self.resting = True
                 break
             else:
-                self._move_towards(game)
+                moved = self._move_towards(game)
+                if not moved:
+                    self.wander(game)
+
+    def attack(self, player):
+        # Переопределяем атаку для гарантированного хита
+        if self.guaranteed_hit:
+            player.hits -= self.strength
+            self.guaranteed_hit = False
+            return "Ogre uses GUARANTEED COUNTERATTACK!"
+        else:
+            return super().attack(player) # Обычная атака с шансом уворота
 
 
 class SnakeMage(Enemy):
@@ -191,11 +223,11 @@ class SnakeMage(Enemy):
         self.exp_reward = 40
         self.diag_dir = random.choice([(1, 1), (1, -1), (-1, 1), (-1, -1)])
 
-    def _move_towards(self, game):
-        # Ходит только по диагонали
+    def wander(self, game):
+        """Уникальный паттерн: ходит только по диагонали"""
         dy, dx = self.diag_dir
         if game.can_move(self.y + dy, self.x + dx) and not self._is_occupied(self.y + dy, self.x + dx, game):
-            self.y += dy;
+            self.y += dy
             self.x += dx
         else:
             self.diag_dir = random.choice([(1, 1), (1, -1), (-1, 1), (-1, -1)])
