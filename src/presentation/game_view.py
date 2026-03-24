@@ -122,7 +122,7 @@ class GameView:
 
                         # Рисуем дверь только если она реально ведет наружу
                         if is_true_door:
-                            self.stdscr.addch(y, x, '+', curses.color_pair(4) | curses.A_BOLD)
+                            self.stdscr.addch(y, x, '▦', curses.color_pair(4) | curses.A_BOLD)
                         # Если is_true_door == False, мы ничего не делаем,
                         # и на экране остается красивая стена ║ или ═, нарисованная в Шаге 1
 
@@ -133,16 +133,23 @@ class GameView:
         # 3. Выход
         end_y, end_x = game.current_level.end_pos
         if safe_y <= end_y < height - 1 and 0 <= end_x < width - 1:
-            self.stdscr.addch(end_y, end_x, '>', curses.color_pair(4) | curses.A_BOLD)
+            self.stdscr.addch(end_y, end_x, '╬', curses.color_pair(7) | curses.A_BOLD)
 
         # 4. Рисуем предметы на полу
-        char_map = {"Weapon": ")", "Potion": "!", "Scroll": "?", "Food": "%"}
+        char_map = {"Weapon": "†", "Potion": "ð", "Scroll": "§", "Food": "♣"}
+
+        color_map = {"Weapon": 7, "Potion": 1, "Scroll": 2, "Food": 4}
 
         for (iy, ix), drop_info in game.current_level.item_drops.items():
             if safe_y <= iy < height - 1 and 0 <= ix < width - 1:
-                char = char_map.get(drop_info["category"], "*")
-                # Используем цвет 6 (бирюзовый) или любой доступный
-                self.stdscr.addch(iy, ix, char, curses.color_pair(6) | curses.A_BOLD)
+                category = drop_info["category"]
+
+                # Достаем символ и цвет. Если категории нет в словаре — берем дефолты (* и белый цвет)
+                char = char_map.get(category, "*")
+                color_id = color_map.get(category, 7)
+
+                # Рисуем с нужным цветом
+                self.stdscr.addch(iy, ix, char, curses.color_pair(color_id) | curses.A_BOLD)
 
         # 5. Рисуем врагов
         for enemy in game.current_level.enemies:
