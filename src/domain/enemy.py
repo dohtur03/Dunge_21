@@ -98,7 +98,7 @@ class Zombie(Enemy):
         super().__init__(y, x, room)
         self.name = "Zombie"
         self.char = "z"
-        self.color_pair = 2  # Зеленый
+        self.color_pair = 4  # Зеленый
         self.hp = 25
         self.strength = 3
         self.agility = 1
@@ -143,7 +143,7 @@ class Ghost(Enemy):
         super().__init__(y, x, room)
         self.name = "Ghost"
         self.char = "g"
-        self.color_pair = 7  # Белый
+        self.color_pair = 3
         self.hp = 8
         self.strength = 2
         self.agility = 9
@@ -178,9 +178,11 @@ class Ghost(Enemy):
 class Ogre(Enemy):
     def __init__(self, y, x, room):
         super().__init__(y, x, room)
-        # ... твои старые статы ...
+        self.name = "Ogre"
+        self.char = "O"
+        self.color_pair = 2
         self.resting = False
-        self.guaranteed_hit = False # Флаг из ТЗ
+        self.guaranteed_hit = False
 
     def act(self, game):
         if self.resting:
@@ -215,7 +217,7 @@ class SnakeMage(Enemy):
         super().__init__(y, x, room)
         self.name = "Snake-Mage"
         self.char = "s"
-        self.color_pair = 7  # Белый
+        self.color_pair = 3
         self.hp = 15
         self.strength = 3
         self.agility = 10
