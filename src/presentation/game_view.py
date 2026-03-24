@@ -61,49 +61,76 @@ class GameView:
 
     def draw_field(self, game, height, width):
         # Панель интерфейса занимает координаты 0, 1 и 2.
-        # Координата 3 — это первая безопасная линия для вывода графики.
         safe_y = 3
 
-        # 1. Рисуем коридоры
-        for y, x in game.current_level.corridors:
-            if safe_y <= y < height - 1 and 0 <= x < width - 1:
-                self.stdscr.addch(y, x, '#', curses.color_pair(3))
+        wall_positions = set()  # Сюда мы будем сохранять координаты стен, чтобы делать в них двери
+        room_floor_positions = set()  # NEW: Сюда мы сохраним координаты пола комнат, чтобы не перекрывать их
 
-        # 2. Рисуем комнаты
+        # 1. Рисуем комнаты (Сначала пол и красивые двойные стены)
         for room in game.current_level.rooms:
             # Пол комнаты
             for ry in range(room.y, room.y + room.height):
                 for rx in range(room.x, room.x + room.width):
                     if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
                         self.stdscr.addch(ry, rx, '.', curses.color_pair(3))
+                        room_floor_positions.add((ry, rx))  # NEW: Запоминаем координату пола
 
             # Верхняя и нижняя стены
             for rx in range(room.x - 1, room.x + room.width + 1):
                 if safe_y <= room.y - 1 < height - 1 and 0 <= rx < width - 1:
-                    self.stdscr.addch(room.y - 1, rx, '─', curses.color_pair(2))
+                    self.stdscr.addch(room.y - 1, rx, '═', curses.color_pair(2) | curses.A_BOLD)
+                    wall_positions.add((room.y - 1, rx))
                 if safe_y <= room.y + room.height < height - 1 and 0 <= rx < width - 1:
-                    self.stdscr.addch(room.y + room.height, rx, '─', curses.color_pair(2))
+                    self.stdscr.addch(room.y + room.height, rx, '═', curses.color_pair(2) | curses.A_BOLD)
+                    wall_positions.add((room.y + room.height, rx))
 
             # Левая и правая стены
             for ry in range(room.y - 1, room.y + room.height + 1):
                 if safe_y <= ry < height - 1 and 0 <= room.x - 1 < width - 1:
-                    self.stdscr.addch(ry, room.x - 1, '│', curses.color_pair(2))
+                    self.stdscr.addch(ry, room.x - 1, '║', curses.color_pair(2) | curses.A_BOLD)
+                    wall_positions.add((ry, room.x - 1))
                 if safe_y <= ry < height - 1 and 0 <= room.x + room.width < width - 1:
-                    self.stdscr.addch(ry, room.x + room.width, '│', curses.color_pair(2))
+                    self.stdscr.addch(ry, room.x + room.width, '║', curses.color_pair(2) | curses.A_BOLD)
+                    wall_positions.add((ry, room.x + room.width))
 
-            # Углы комнат
+            # Углы комнат (добавлять их в wall_positions не нужно, они уже там)
             if safe_y <= room.y - 1 < height - 1:
                 if 0 <= room.x - 1 < width - 1:
-                    self.stdscr.addch(room.y - 1, room.x - 1, '┌', curses.color_pair(2))
+                    self.stdscr.addch(room.y - 1, room.x - 1, '╔', curses.color_pair(2) | curses.A_BOLD)
                 if 0 <= room.x + room.width < width - 1:
-                    self.stdscr.addch(room.y - 1, room.x + room.width, '┐', curses.color_pair(2))
+                    self.stdscr.addch(room.y - 1, room.x + room.width, '╗', curses.color_pair(2) | curses.A_BOLD)
 
             if safe_y <= room.y + room.height < height - 1:
                 if 0 <= room.x - 1 < width - 1:
-                    self.stdscr.addch(room.y + room.height, room.x - 1, '└', curses.color_pair(2))
+                    self.stdscr.addch(room.y + room.height, room.x - 1, '╚', curses.color_pair(2) | curses.A_BOLD)
                 if 0 <= room.x + room.width < width - 1:
-                    self.stdscr.addch(room.y + room.height, room.x + room.width, '┘', curses.color_pair(2))
+                    self.stdscr.addch(room.y + room.height, room.x + room.width, '╝',
+                                      curses.color_pair(2) | curses.A_BOLD)
 
+            # 2. Рисуем коридоры и двери ПОВЕРХ, но умно
+            for y, x in game.current_level.corridors:
+                if safe_y <= y < height - 1 and 0 <= x < width - 1:
+                    if (y, x) in wall_positions:
+                        # Умная проверка: это настоящая дверь?
+                        # Она должна вести в "чистый" коридор (не стену и не пол)
+                        is_true_door = False
+                        for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                            ny, nx = y + dy, x + dx
+                            if (ny, nx) in game.current_level.corridors and \
+                                    (ny, nx) not in wall_positions and \
+                                    (ny, nx) not in room_floor_positions:
+                                is_true_door = True
+                                break
+
+                        # Рисуем дверь только если она реально ведет наружу
+                        if is_true_door:
+                            self.stdscr.addch(y, x, '+', curses.color_pair(4) | curses.A_BOLD)
+                        # Если is_true_door == False, мы ничего не делаем,
+                        # и на экране остается красивая стена ║ или ═, нарисованная в Шаге 1
+
+                    elif (y, x) not in room_floor_positions:
+                        # Темный пещерный коридор
+                        self.stdscr.addch(y, x, '▒', curses.color_pair(3))
 
         # 3. Выход
         end_y, end_x = game.current_level.end_pos
@@ -125,6 +152,7 @@ class GameView:
                 if enemy.is_visible():
                     self.stdscr.addch(enemy.y, enemy.x, enemy.char,
                                       curses.color_pair(enemy.color_pair) | curses.A_BOLD)
+
     def draw_bottom_panel(self, game, height, width):
         # Теперь проверяем наличие оружия у ИГРОКА (game.player)
         if game.player.current_weapon is None:
