@@ -23,7 +23,16 @@ class Enemy:
         return True
 
     def attack(self, player) -> str:
-        """Наносит урон, возвращает строку с описанием спецэффекта"""
+        """Наносит урон с учетом шанса уклонения игрока"""
+        # Считаем шанс уклонения: 1% за каждую единицу ловкости, но не больше 60%
+        dodge_chance = min(player.agility * 0.01, 0.60)
+
+        # Бросаем кубик (от 0.0 до 1.0)
+        if random.random() < dodge_chance:
+            # Уворот успешен!
+            return f"Dodged! {self.name}'s attack missed."
+
+        # Уворот не удался, получаем по лицу
         player.hits -= self.strength
         return ""
 
@@ -93,7 +102,11 @@ class Vampire(Enemy):
         return True
 
     def attack(self, player):
-        super().attack(player)
+        result = super().attack(player)
+        # Если в результате есть слово 'Dodged', значит уворот сработал, прерываем атаку
+        if "Dodged" in result:
+            return result
+
         player.max_hits = max(1, player.max_hits - 1)  # Крадет Макс ХП
         if player.hits > player.max_hits: player.hits = player.max_hits
         return "Vampire drained your MAX HP!"
@@ -188,7 +201,10 @@ class SnakeMage(Enemy):
             self.diag_dir = random.choice([(1, 1), (1, -1), (-1, 1), (-1, -1)])
 
     def attack(self, player):
-        super().attack(player)
+        result = super().attack(player)
+        if "Dodged" in result:
+            return result
+
         if random.random() < 0.3:  # 30% шанс усыпить
             player.sleep_turns += 1
             return "Snake-Mage put you to SLEEP!"
