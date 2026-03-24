@@ -101,23 +101,23 @@ class Level:
                 self.corridors.add((y2, x))
 
     def _spawn_entities(self):
-        # 1. Прогрессия типов: на 1-м уровне ТОЛЬКО зомби
-        available_classes = [Zombie]
-        if self.stage >= 2: available_classes.append(Ghost)
-        if self.stage >= 3: available_classes.append(Vampire)
-        if self.stage >= 4: available_classes.append(SnakeMage)
-        if self.stage >= 5: available_classes.append(Ogre)
+        # 1. ВСЕ враги доступны с 1-го этажа (Русская рулетка!)
+        available_classes = [Zombie, Ghost, Vampire, SnakeMage, Ogre]
 
         for room in self.rooms:
             if room.is_start: continue
 
-            # 2. Прогрессия количества: на 1-м уровне будет 0-1 враг в комнате
-            min_enemies = 1 if self.stage >= 5 else 0
-            max_enemies = min(3, 1 + (self.stage // 2))
+            # 2. Прогрессия количества (Толпы растут с каждым этажом)
+            min_enemies = 0
+            if self.stage >= 10: min_enemies = 1
+            if self.stage >= 18: min_enemies = 2
+
+            # 1-й ур: макс 1 враг. 4-й ур: макс 2. 16+ ур: макс 5.
+            max_enemies = min(5, 1 + (self.stage // 4))
 
             num_enemies = random.randint(min_enemies, max_enemies)
 
-            # 3. Спавним вычисленное количество (НИКАКИХ ДРУГИХ ЦИКЛОВ ВОКРУГ ЭТОГО)
+            # 3. Спавним вычисленное количество
             for _ in range(num_enemies):
                 ey = random.randint(room.y, room.y + room.height - 1)
                 ex = random.randint(room.x, room.x + room.width - 1)
@@ -126,12 +126,16 @@ class Level:
                     EnemyClass = random.choice(available_classes)
                     enemy = EnemyClass(ey, ex, room)
 
-                    extra_hp = (self.stage - 1) * 2
+                    # 4. Бафф статов (Прогрессия сложности)
+                    # Враги становятся жирнее и бьют больнее на глубоких этажах
+                    extra_hp = (self.stage - 1) * 3
                     enemy.max_hp += extra_hp
                     enemy.hp += extra_hp
 
-                    self.enemies.append(enemy)
+                    extra_str = self.stage // 5
+                    enemy.strength += extra_str
 
+                    self.enemies.append(enemy)
             # 4. Спавн предметов (остается классическим)
             if random.random() < 0.4:
                 iy = random.randint(room.y, room.y + room.height - 1)
