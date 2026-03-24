@@ -101,19 +101,38 @@ class Level:
                 self.corridors.add((y2, x))
 
     def _spawn_entities(self):
-        enemy_classes = [Zombie, Vampire, Ghost, Ogre, SnakeMage]
+        # 1. Прогрессия типов: на 1-м уровне ТОЛЬКО зомби
+        available_classes = [Zombie]
+        if self.stage >= 2: available_classes.append(Ghost)
+        if self.stage >= 3: available_classes.append(Vampire)
+        if self.stage >= 4: available_classes.append(SnakeMage)
+        if self.stage >= 5: available_classes.append(Ogre)
 
         for room in self.rooms:
             if room.is_start: continue
 
-            for _ in range(random.randint(0, 2)):
+            # 2. Прогрессия количества: на 1-м уровне будет 0-1 враг в комнате
+            min_enemies = 1 if self.stage >= 5 else 0
+            max_enemies = min(3, 1 + (self.stage // 2))
+
+            num_enemies = random.randint(min_enemies, max_enemies)
+
+            # 3. Спавним вычисленное количество (НИКАКИХ ДРУГИХ ЦИКЛОВ ВОКРУГ ЭТОГО)
+            for _ in range(num_enemies):
                 ey = random.randint(room.y, room.y + room.height - 1)
                 ex = random.randint(room.x, room.x + room.width - 1)
 
                 if (ey, ex) != self.end_pos:
-                    EnemyClass = random.choice(enemy_classes)
+                    EnemyClass = random.choice(available_classes)
                     enemy = EnemyClass(ey, ex, room)
 
+                    extra_hp = (self.stage - 1) * 2
+                    enemy.max_hp += extra_hp
+                    enemy.hp += extra_hp
+
+                    self.enemies.append(enemy)
+
+            # 4. Спавн предметов (остается классическим)
             if random.random() < 0.4:
                 iy = random.randint(room.y, room.y + room.height - 1)
                 ix = random.randint(room.x, room.x + room.width - 1)
@@ -122,7 +141,6 @@ class Level:
                     category = random.choice(list(Item.items.keys()))
                     item_data = random.choice(Item.items[category])
 
-                    # Создаем предмет четко по твоему классу Item
                     item = Item(
                         name=item_data["name"],
                         effect_duration=item_data["effect_duration"],
@@ -135,4 +153,3 @@ class Level:
                         "category": category,
                         "item": item
                     }
-                    self.enemies.append(enemy)
