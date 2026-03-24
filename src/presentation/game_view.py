@@ -154,14 +154,34 @@ class GameView:
                                       curses.color_pair(enemy.color_pair) | curses.A_BOLD)
 
     def draw_bottom_panel(self, game, height, width):
-        # Теперь проверяем наличие оружия у ИГРОКА (game.player)
+        # Хелпер: генератор красивых полосок прогресса
+        def make_bar(current, maximum, length=10):
+            if maximum <= 0: return f"[{'░' * length}]"
+            # Считаем долю заполнения
+            fill = int((current / maximum) * length)
+            fill = min(max(fill, 0), length)  # Защита от переполнения
+            return f"[{'█' * fill}{'░' * (length - fill)}]"
+
+        # Генерируем полоски (15 символов для ХП, 10 для Опыта)
+        hp_bar = make_bar(game.player.hits, game.player.max_hits, 15)
+        exp_bar = make_bar(game.player.exp, game.player.exp_to_level_up, 10)
+
+        # Оружие
         if game.player.current_weapon is None:
             weapon_str_hint = ""
         else:
             weapon_str_hint = f"(+{game.player.current_weapon.value})"
 
-        # Вся статистика (кроме Stage) тоже теперь берется из game.player
-        stats = f"Stage: {game.player_stage} Hits: {game.player.hits}/{game.player.max_hits} Str: {game.player.str}{weapon_str_hint} Agi: {game.player.agility} Gold: {game.player.gold} Exp: {game.player.exp}/{game.player.exp_to_level_up} Level: {game.player.level}"
+        # Собираем красивую и информативную строку с разделителями
+        stats = (
+            f"Stg:{game.player_stage} | "
+            f"HP {hp_bar} {game.player.hits}/{game.player.max_hits} | "
+            f"EXP {exp_bar} {game.player.exp}/{game.player.exp_to_level_up} | "
+            f"Lvl:{game.player.level} | "
+            f"Str:{game.player.str}{weapon_str_hint} | "
+            f"Agi:{game.player.agility} | "
+            f"Gold:${game.player.gold}"
+        )
 
         y_stats = height - 1
         x_stats = max(1, (width - len(stats)) // 2)
@@ -169,6 +189,11 @@ class GameView:
         safe_width = width - x_stats - 1
         safe_stats = stats[:safe_width]
 
+        # Очищаем строку перед отрисовкой, чтобы хвосты старых надписей не "прилипали"
+        self.stdscr.move(y_stats, 0)
+        self.stdscr.clrtoeol()
+
+        # Рисуем!
         self.stdscr.addstr(y_stats, x_stats, safe_stats, curses.color_pair(3) | curses.A_BOLD)
 
     def show_exit_menu(self) -> int:
