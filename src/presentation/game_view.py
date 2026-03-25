@@ -138,7 +138,7 @@ class GameView:
         # 4. Рисуем предметы на полу
         char_map = {"Weapon": "†", "Potion": "ð", "Scroll": "§", "Food": "♣"}
 
-        color_map = {"Weapon": 7, "Potion": 1, "Scroll": 2, "Food": 4}
+        color_map = {"Weapon": 3, "Potion": 1, "Scroll": 2, "Food": 4}
 
         for (iy, ix), drop_info in game.current_level.item_drops.items():
             if safe_y <= iy < height - 1 and 0 <= ix < width - 1:
