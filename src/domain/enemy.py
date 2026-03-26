@@ -14,30 +14,25 @@ class Enemy:
         self.agility = 1
         self.hostility = 5
         self.exp_reward = 10
-        self.is_engaged = False  # Заметил ли враг игрока
+        self.is_engaged = False
 
     def take_damage(self, damage: int) -> bool:
-        """Возвращает True (удар прошел) или False (уворот/блок)"""
         self.hp -= damage
         self.is_engaged = True
         return True
 
     def attack(self, player) -> str:
         """Наносит урон с учетом шанса уклонения игрока"""
-        # Считаем шанс уклонения: 1% за каждую единицу ловкости, но не больше 60%
         dodge_chance = min(player.agility * 0.01, 0.60)
 
         # Бросаем кубик (от 0.0 до 1.0)
         if random.random() < dodge_chance:
-            # Уворот успешен!
             return f"Dodged! {self.name}'s attack missed."
 
-        # Уворот не удался, получаем по лицу
         player.hits -= self.strength
         return ""
 
     def act(self, game):
-        """Базовый ИИ: проверить дистанцию, ударить, преследовать или бродить"""
         dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
         if dist == 1:
             msg = self.attack(game.player)
@@ -46,36 +41,29 @@ class Enemy:
             self.is_engaged = True
             moved = self._move_towards(game)
             if not moved:
-                # ТЗ: Если пути нет, двигаться по своему паттерну
                 self.wander(game)
         else:
-            # Если игрок далеко - просто бродим
             self.wander(game)
 
     def wander(self, game):
-        """Паттерн по умолчанию: случайный шаг по горизонтали/вертикали"""
         dy, dx = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)])
         if game.can_move(self.y + dy, self.x + dx) and not self._is_occupied(self.y + dy, self.x + dx, game):
             self.y += dy
             self.x += dx
 
     def _move_towards(self, game) -> bool:
-        """Преследование: возвращает True если сделал шаг, False если путь заблокирован"""
         dy = 1 if game.player.y > self.y else (-1 if game.player.y < self.y else 0)
         dx = 1 if game.player.x > self.x else (-1 if game.player.x < self.x else 0)
 
         moves = [(self.y + dy, self.x + dx), (self.y + dy, self.x), (self.y, self.x + dx)]
         for ny, nx in moves:
-            # Обычный монстр не ходит по диагонали при преследовании, если только это не единственный путь
-            # Для строгого соблюдения ТЗ берем только соседние клетки (крестом)
             if ny != self.y and nx != self.x:
-                continue  # Игнорируем диагонали в базовом преследовании
+                continue
 
             if game.can_move(ny, nx) and not self._is_occupied(ny, nx, game):
                 self.y, self.x = ny, nx
                 return True
 
-        # Если по прямой нельзя, пробуем хоть как-то приблизиться
         for ny, nx in moves:
             if game.can_move(ny, nx) and not self._is_occupied(ny, nx, game):
                 self.y, self.x = ny, nx
@@ -98,7 +86,7 @@ class Zombie(Enemy):
         super().__init__(y, x, room)
         self.name = "Zombie"
         self.char = "z"
-        self.color_pair = 4  # Зеленый
+        self.color_pair = 4
         self.hp = 25
         self.strength = 3
         self.agility = 1
@@ -111,7 +99,7 @@ class Vampire(Enemy):
         super().__init__(y, x, room)
         self.name = "Vampire"
         self.char = "v"
-        self.color_pair = 1  # Красный
+        self.color_pair = 1
         self.hp = 25
         self.strength = 4
         self.agility = 8
@@ -123,13 +111,12 @@ class Vampire(Enemy):
         self.is_engaged = True
         if not self.first_hit_taken:
             self.first_hit_taken = True
-            return False  # Уворот от первой атаки!
+            return False
         self.hp -= damage
         return True
 
     def attack(self, player):
         result = super().attack(player)
-        # Если в результате есть слово 'Dodged', значит уворот сработал, прерываем атаку
         if "Dodged" in result:
             return result
 
@@ -150,27 +137,23 @@ class Ghost(Enemy):
         self.hostility = 3
         self.exp_reward = 20
 
-        # Новые переменные для плавного исчезновения
         self._is_faded = False
         self._turn_counter = 0
 
     def is_visible(self):
         if self.is_engaged:
             return True
-        # Теперь возвращаем конкретное состояние, а не рандом
         return not self._is_faded
 
     def act(self, game):
         if self.is_engaged:
             super().act(game)
         else:
-            # Считаем ходы. Каждые 4 хода призрак меняет видимость
             self._turn_counter += 1
             if self._turn_counter >= 4:
                 self._is_faded = not self._is_faded
                 self._turn_counter = 0
 
-            # Телепортация (шанс 5%, чтобы не летал по комнате каждую секунду)
             if random.random() < 0.05:
                 self.y = random.randint(self.room.y, self.room.y + self.room.height - 1)
                 self.x = random.randint(self.room.x, self.room.x + self.room.width - 1)
@@ -181,19 +164,23 @@ class Ogre(Enemy):
         self.name = "Ogre"
         self.char = "O"
         self.color_pair = 2
+        self.hp = 40
+        self.strength = 6
+        self.agility = 1
+        self.exp_reward = 30
         self.resting = False
         self.guaranteed_hit = False
 
     def act(self, game):
         if self.resting:
             self.resting = False
-            self.guaranteed_hit = True # Отдохнул -> готовим 100% удар
+            self.guaranteed_hit = True
             return
 
         for _ in range(2):
             dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
             if dist == 1:
-                msg = self.attack(game.player)
+                msg = self.attack(game)
                 if msg: game.action_msg = msg
                 self.resting = True
                 break
@@ -202,15 +189,18 @@ class Ogre(Enemy):
                 if not moved:
                     self.wander(game)
 
-    def attack(self, player):
-        # Переопределяем атаку для гарантированного хита
-        if self.guaranteed_hit:
-            player.hits -= self.strength
-            self.guaranteed_hit = False
-            return "Ogre uses GUARANTEED COUNTERATTACK!"
-        else:
-            return super().attack(player) # Обычная атака с шансом уворота
+    def attack(self, game) -> str:
+        player = game.player
+        dodge_chance = min(player.agility * 0.01, 0.60)
 
+        if random.random() < dodge_chance:
+            return f"Dodged! {self.name}'s attack missed."
+
+        player.hits -= self.strength
+
+        game.stats["hits_taken"] += 1
+
+        return ""
 
 class SnakeMage(Enemy):
     def __init__(self, y, x, room):
@@ -226,7 +216,6 @@ class SnakeMage(Enemy):
         self.diag_dir = random.choice([(1, 1), (1, -1), (-1, 1), (-1, -1)])
 
     def wander(self, game):
-        """Уникальный паттерн: ходит только по диагонали"""
         dy, dx = self.diag_dir
         if game.can_move(self.y + dy, self.x + dx) and not self._is_occupied(self.y + dy, self.x + dx, game):
             self.y += dy
@@ -239,7 +228,7 @@ class SnakeMage(Enemy):
         if "Dodged" in result:
             return result
 
-        if random.random() < 0.3:  # 30% шанс усыпить
+        if random.random() < 0.3:
             player.sleep_turns += 1
             return "Snake-Mage put you to SLEEP!"
         return ""
