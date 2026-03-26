@@ -4,6 +4,7 @@ from domain.player import Player
 from domain.inventory import Inventory
 from domain.item import Item
 from domain.director import GameDirector
+from domain.fog import FogOfWar
 
 
 class Game:
@@ -24,14 +25,16 @@ class Game:
             "cells_walked": 0
         }
         self.collected_keys = set()
+        self.fow = FogOfWar()
         self.generate_new_stage()
 
     def generate_new_stage(self):
         self.collected_keys.clear()
-        # Передаем Режиссера в генератор уровня!
         self.current_level = Level(self.player_stage, 75, 28, self.director)
         self.current_level.generate_level()
         self.player.y, self.player.x = self.current_level.start_pos
+        self.fow.reset()
+        self.fow.update(self.player.y, self.player.x, self.current_level)
 
     def get_score(self):
         return self.player.gold
@@ -173,6 +176,8 @@ class Game:
 
         if self.player.hits <= 0:
             return "died"
+
+        self.fow.update(self.player.y, self.player.x, self.current_level)
         return "continue"
 
     def _process_enemies(self):
@@ -189,11 +194,13 @@ class Game:
     def save_game_data_to_dict(self) -> dict:
         self.stats["treasures"] = self.player.gold
         self.stats["level_reached"] = self.player_stage
+
         return {
             "stats": self.stats,
             "stage": self.player_stage,
             "collected_keys": list(self.collected_keys),
-            "difficulty": self.director.difficulty_multiplier,  # Сохраняем сложность
+            "difficulty": self.director.difficulty_multiplier,
+            "explored_cells": [list(cell) for cell in self.fow.explored_cells],
             "player_data": self.player.to_dict()
         }
 
@@ -202,8 +209,6 @@ class Game:
         game = cls.__new__(cls)
         game.player_stage = data.get("stage", 1)
         game.collected_keys = set(data.get("collected_keys", []))
-
-        # Восстанавливаем Режиссера
         game.director = GameDirector()
         game.director.difficulty_multiplier = data.get("difficulty", 1.0)
 
@@ -241,10 +246,14 @@ class Game:
                     break
 
         game.player.update_stats()
-
-        # Передаем Режиссера при загрузке
         game.current_level = Level(game.player_stage, 75, 28, game.director)
         game.current_level.generate_level()
+
+        game.fow = FogOfWar()
+
+        explored_data = data.get("explored_cells", [])
+        game.fow.explored_cells = {tuple(cell) for cell in explored_data}
+        game.fow.update(game.player.y, game.player.x, game.current_level)
 
         return game
 
