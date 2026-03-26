@@ -2,7 +2,7 @@ import json
 import pathlib
 from typing import List, Tuple, Dict, Any
 
-score_dir = pathlib.Path("../../score")
+score_dir = pathlib.Path("../score")
 score_dir.mkdir(exist_ok=True)
 score_file = score_dir / "score.json"
 

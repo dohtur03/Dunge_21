@@ -171,36 +171,89 @@ def draw_bottom_panel(stdscr, height: int, width: int):
         attr = curses.color_pair(pair) | curses.A_BOLD
         stdscr.addstr(y, x, name, attr)
 
-def draw_score(stdscr, height: int, width: int):
-    big_block = big_score
-    block_h = len(big_block)
-    y_title = height // 4 - block_h // 2
 
-    for i, line in enumerate(big_block):
-        y = y_title + i
+def draw_score(stdscr, height: int, width: int):
+    # 1. Header Rendering (ASCII Art)
+    logo_block = big_score
+    logo_height = len(logo_block)
+    y_position = height // 6 - logo_height // 2
+
+    for i, line in enumerate(logo_block):
+        y = y_position + i
         if 0 <= y < height:
             x = (width - len(line)) // 2
             stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
 
-    top_score = get_top_score(10)
-    table_y = y_title + block_h + 2
-    table_x = (width - 30) // 2
+    # --- НАСТРОЙКА ШИРИНЫ КОЛОНОК (Секрет ровной таблицы) ---
+    w_name = 15  # PLAYER
+    w_lvl = 12  # LVL REACHED
+    w_gold = 20  # TREASURE COLLECTED
+    w_kills = 18  # ENEMIES DEFEATED
+    w_food = 15  # FOOD CONSUMED
+    w_pots = 14  # ELIXIRS USED
+    w_scrolls = 14  # SCROLLS READ
+    w_hits = 17  # HITS MADE/TAKEN
+    w_tiles = 16  # TILES TRAVERSED
 
-    headers = "Player        Score"
-    stdscr.addstr(table_y, table_x, headers, curses.color_pair(2) | curses.A_BOLD)
+    # Формируем строку заголовков
+    headers = (f"{'PLAYER':<{w_name}} {'LVL REACHED':<{w_lvl}} {'TREASURE COLLECTED':<{w_gold}} "
+               f"{'ENEMIES DEFEATED':<{w_kills}} {'FOOD CONSUMED':<{w_food}} {'ELIXIRS USED':<{w_pots}} "
+               f"{'SCROLLS READ':<{w_scrolls}} {'HITS MADE/TAKEN':<{w_hits}} {'TILES TRAVERSED':<{w_tiles}}")
 
-    for i, (player, score) in enumerate(top_score):
-        y = table_y + i + 1
-        line = f"{player:<12} {score:>8,}"
-        color = curses.color_pair(4 if i == 0 else 3)
-        attr = color | curses.A_BOLD if i == 0 else color
-        stdscr.addstr(y, table_x, line[:30], attr)
+    # Считаем X для идеальной центровки всей строки
+    table_start_x = max(0, (width - len(headers)) // 2)
+    table_start_y = y_position + logo_height + 2
 
-    for i in range(len(top_score), 10):
-        y = table_y + i + 1
-        stdscr.addstr(y, table_x, " " * 30, curses.color_pair(3))
+    # Печатаем шапку
+    if table_start_y < height:
+        stdscr.addstr(table_start_y, table_start_x, headers, curses.color_pair(2) | curses.A_BOLD)
 
-    back_y = table_y + 20
-    back_text = "<Press any key to return>"
-    back_x = (width - len(back_text)) // 2
-    stdscr.addstr(back_y, back_x, back_text, curses.color_pair(7))
+    # 3. Data Row Rendering
+    top_records = get_top_score(10)
+    for index, record in enumerate(top_records):
+        player_name = record[0]
+        session_data = record[1]
+
+        if isinstance(session_data, dict):
+            stats = session_data.get("stats", session_data)
+            gold_collected = stats.get("treasures", 0)
+            level_reached = session_data.get("stage", stats.get("level_reached", 1))
+            enemies_slain = stats.get("enemies_killed", 0)
+            food_eaten = stats.get("food_eaten", 0)
+            potions_drunk = stats.get("elixirs_drunk", 0)
+            scrolls_read = stats.get("scrolls_read", 0)
+            attacks_landed = stats.get("hits_dealt", 0)
+            damage_received = stats.get("hits_taken", 0)
+            distance_walked = stats.get("cells_walked", 0)
+        else:
+            gold_collected = session_data
+            level_reached, enemies_slain, food_eaten, potions_drunk, scrolls_read, \
+                attacks_landed, damage_received, distance_walked = 1, 0, 0, 0, 0, 0, 0, 0
+
+        # Формируем строку данных, используя ТЕ ЖЕ переменные ширины
+        combat_ratio = f"{attacks_landed}/{damage_received}"
+
+        # Используем те же f-строки с переменными ширины {value:<{width}}
+        display_line = (f"{player_name[:w_name - 1]:<{w_name}} {level_reached:<{w_lvl}} "
+                        f"{gold_collected:<{w_gold},} {enemies_slain:<{w_kills}} "
+                        f"{food_eaten:<{w_food}} {potions_drunk:<{w_pots}} "
+                        f"{scrolls_read:<{w_scrolls}} {combat_ratio:<{w_hits}} "
+                        f"{distance_walked:<{w_tiles}}")
+
+        y_row = table_start_y + 1 + index
+        if y_row < height - 1:
+            is_top_one = (index == 0)
+            color_attr = curses.color_pair(4 if is_top_one else 3)
+            if is_top_one: color_attr |= curses.A_BOLD
+
+            try:
+                stdscr.addstr(y_row, table_start_x, display_line, color_attr)
+            except curses.error:
+                pass
+
+    # 4. Footer
+    exit_hint = "< Press any key to return to Main Menu >"
+    footer_y = height - 1  # Чуть ниже для красоты
+    footer_x = (width - len(exit_hint)) // 2
+    if footer_y < height:
+        stdscr.addstr(footer_y, footer_x, exit_hint, curses.color_pair(7))

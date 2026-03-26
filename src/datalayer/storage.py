@@ -3,7 +3,7 @@ import json
 import datetime
 
 class Storage:
-    SLOTS_DIR = "../../saves/"
+    SLOTS_DIR = "../saves/"
 
     def __init__(self):
         os.makedirs(self.SLOTS_DIR, exist_ok=True)
