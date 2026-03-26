@@ -61,8 +61,8 @@ class GameView:
         # Панель интерфейса занимает координаты 0, 1 и 2.
         safe_y = 3
 
-        wall_positions = set()  # Сюда мы будем сохранять координаты стен, чтобы делать в них двери
-        room_floor_positions = set()  # NEW: Сюда мы сохраним координаты пола комнат, чтобы не перекрывать их
+        wall_positions = set()
+        room_floor_positions = set()
 
         # 1. Рисуем комнаты (Сначала пол и красивые двойные стены)
         for room in game.current_level.rooms:
@@ -71,9 +71,9 @@ class GameView:
                 for rx in range(room.x, room.x + room.width):
                     if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
                         self.stdscr.addch(ry, rx, '.', curses.color_pair(3))
-                        room_floor_positions.add((ry, rx))  # NEW: Запоминаем координату пола
+                        room_floor_positions.add((ry, rx))
 
-            # Верхняя и нижняя стены
+                        # Верхняя и нижняя стены
             for rx in range(room.x - 1, room.x + room.width + 1):
                 if safe_y <= room.y - 1 < height - 1 and 0 <= rx < width - 1:
                     self.stdscr.addch(room.y - 1, rx, '═', curses.color_pair(2) | curses.A_BOLD)
@@ -91,7 +91,7 @@ class GameView:
                     self.stdscr.addch(ry, room.x + room.width, '║', curses.color_pair(2) | curses.A_BOLD)
                     wall_positions.add((ry, room.x + room.width))
 
-            # Углы комнат (добавлять их в wall_positions не нужно, они уже там)
+            # Углы комнат
             if safe_y <= room.y - 1 < height - 1:
                 if 0 <= room.x - 1 < width - 1:
                     self.stdscr.addch(room.y - 1, room.x - 1, '╔', curses.color_pair(2) | curses.A_BOLD)
@@ -105,58 +105,59 @@ class GameView:
                     self.stdscr.addch(room.y + room.height, room.x + room.width, '╝',
                                       curses.color_pair(2) | curses.A_BOLD)
 
-            # 2. Рисуем коридоры и двери ПОВЕРХ, но умно
-            for y, x in game.current_level.corridors:
-                if safe_y <= y < height - 1 and 0 <= x < width - 1:
-                    if (y, x) in wall_positions:
-                        # Умная проверка: это настоящая дверь?
-                        # Она должна вести в "чистый" коридор (не стену и не пол)
-                        is_true_door = False
-                        for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                            ny, nx = y + dy, x + dx
-                            if (ny, nx) in game.current_level.corridors and \
-                                    (ny, nx) not in wall_positions and \
-                                    (ny, nx) not in room_floor_positions:
-                                is_true_door = True
-                                break
+        door_colors = {"Red": 1, "Blue": 7, "Yellow": 2}
 
-                        # Рисуем дверь только если она реально ведет наружу
-                        if is_true_door:
-                            self.stdscr.addch(y, x, '▦', curses.color_pair(4) | curses.A_BOLD)
-                        # Если is_true_door == False, мы ничего не делаем,
-                        # и на экране остается красивая стена ║ или ═, нарисованная в Шаге 1
+        for (dy, dx), color_name in game.current_level.doors.items():
+            if safe_y <= dy < height - 1 and 0 <= dx < width - 1:
+                c_pair = door_colors.get(color_name, 7)
+                self.stdscr.addch(dy, dx, '▦', curses.color_pair(c_pair) | curses.A_BOLD)
 
-                    elif (y, x) not in room_floor_positions:
-                        # Темный пещерный коридор
-                        self.stdscr.addch(y, x, '▒', curses.color_pair(3))
+        for y, x in game.current_level.corridors:
+            if safe_y <= y < height - 1 and 0 <= x < width - 1:
+                if (y, x) in game.current_level.doors:
+                    continue
 
-        # 3. Выход
+                if (y, x) in wall_positions:
+                    is_true_door = False
+                    for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                        ny, nx = y + dy, x + dx
+                        if (ny, nx) in game.current_level.corridors and \
+                                (ny, nx) not in wall_positions and \
+                                (ny, nx) not in room_floor_positions:
+                            is_true_door = True
+                            break
+
+                    if is_true_door:
+                        self.stdscr.addch(y, x, '▦', curses.color_pair(4) | curses.A_BOLD)
+                elif (y, x) not in room_floor_positions:
+                    self.stdscr.addch(y, x, '▒', curses.color_pair(3))
+
+        # 4. Выход
         end_y, end_x = game.current_level.end_pos
         if safe_y <= end_y < height - 1 and 0 <= end_x < width - 1:
             self.stdscr.addch(end_y, end_x, '╬', curses.color_pair(7) | curses.A_BOLD)
 
-        # 4. Рисуем предметы на полу
-        char_map = {"Weapon": "†", "Potion": "ð", "Scroll": "§", "Food": "♣"}
+        for (ky, kx), color_name in game.current_level.keys.items():
+            if safe_y <= ky < height - 1 and 0 <= kx < width - 1:
+                c_pair = door_colors.get(color_name, 7)
+                self.stdscr.addch(ky, kx, '⚷', curses.color_pair(c_pair) | curses.A_BOLD | curses.A_BLINK)
 
+        # 6. Рисуем обычные предметы на полу
+        char_map = {"Weapon": "†", "Potion": "ð", "Scroll": "§", "Food": "♣"}
         color_map = {"Weapon": 3, "Potion": 1, "Scroll": 2, "Food": 4}
 
         for (iy, ix), drop_info in game.current_level.item_drops.items():
             if safe_y <= iy < height - 1 and 0 <= ix < width - 1:
                 category = drop_info["category"]
-
-                # Достаем символ и цвет. Если категории нет в словаре — берем дефолты (* и белый цвет)
                 char = char_map.get(category, "*")
                 color_id = color_map.get(category, 7)
-
-                # Рисуем с нужным цветом
                 self.stdscr.addch(iy, ix, char, curses.color_pair(color_id) | curses.A_BOLD)
 
-        # 5. Рисуем врагов
+        # 7. Рисуем врагов
         for enemy in game.current_level.enemies:
             if safe_y <= enemy.y < height - 1 and 0 <= enemy.x < width - 1:
                 if enemy.is_visible():
-                    self.stdscr.addch(enemy.y, enemy.x, enemy.char,
-                                      curses.color_pair(enemy.color_pair) | curses.A_BOLD)
+                    self.stdscr.addch(enemy.y, enemy.x, enemy.char, curses.color_pair(enemy.color_pair) | curses.A_BOLD)
 
     def draw_bottom_panel(self, game, height, width):
         # Хелпер: генератор красивых полосок прогресса

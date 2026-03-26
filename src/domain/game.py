@@ -12,19 +12,23 @@ class Game:
         self.player_stage = 1
         self.player = Player(player_name, self)
         self.stats = {
-            "treasures": 0,  # Количество сокровищ (счет)
-            "level_reached": 1,  # Достигнутый уровень
-            "enemies_killed": 0,  # Количество побежденных противников
-            "food_eaten": 0,  # Съеденная еда
-            "elixirs_drunk": 0,  # Выпитые эликсиры
-            "scrolls_read": 0,  # Прочитанные свитки
-            "hits_dealt": 0,  # Нанесенные удары
-            "hits_taken": 0,  # Полученные удары
-            "cells_walked": 0  # Пройденные клетки (шаги)
+            "treasures": 0,
+            "level_reached": 1,
+            "enemies_killed": 0,
+            "food_eaten": 0,
+            "elixirs_drunk": 0,
+            "scrolls_read": 0,
+            "hits_dealt": 0,
+            "hits_taken": 0,
+            "cells_walked": 0
         }
+        # Инициализируем связку ключей
+        self.collected_keys = set()
         self.generate_new_stage()
 
     def generate_new_stage(self):
+        # При переходе на новый уровень старые ключи сбрасываются (как в DOOM)
+        self.collected_keys.clear()
         self.current_level = Level(self.player_stage, 75, 28)
         self.current_level.generate_level()
         self.player.y, self.player.x = self.current_level.start_pos
@@ -32,7 +36,12 @@ class Game:
     def get_score(self):
         return self.player_score
 
-    def can_move(self, target_y: int, target_x: int) -> bool:
+    # Добавили аргумент is_player, чтобы отличать игрока от монстров
+    def can_move(self, target_y: int, target_x: int, is_player: bool = False) -> bool:
+        # Враги не умеют открывать двери и упираются в них как в стену
+        if not is_player and hasattr(self, 'current_level') and (target_y, target_x) in self.current_level.doors:
+            return False
+
         if (target_y, target_x) in self.current_level.corridors:
             return True
         for room in self.current_level.rooms:
@@ -48,7 +57,6 @@ class Game:
         if self.player.hits <= 0:
             return "died"
 
-        # Если игрок спит, он пропускает ход, но враги ходят!
         if self.player.sleep_turns > 0:
             self.player.sleep_turns -= 1
             self.action_msg = "You are SLEEPING! Zzz..."
@@ -69,15 +77,15 @@ class Game:
             new_x += 1
         elif key == 105:
             return "open_inventory"
-        elif key == 113:  # 'q' - Выход из игры
+        elif key == 113:
             return "request_quit"
-        elif key == 104:  # 'h' - Оружие
+        elif key == 104:
             return "classic_inv_Weapon"
-        elif key == 106:  # 'j' - Еда
+        elif key == 106:
             return "classic_inv_Food"
-        elif key == 107:  # 'k' - Зелья
+        elif key == 107:
             return "classic_inv_Potion"
-        elif key == 101:  # 'e' - Свитки
+        elif key == 101:
             return "classic_inv_Scroll"
 
         enemy_hit = None
@@ -103,7 +111,22 @@ class Game:
                 self.action_msg = f"{enemy_hit.name} DODGED!"
             turn_taken = True
 
-        elif self.can_move(new_y, new_x):
+        # Сообщаем функции can_move, что ходит именно игрок
+        elif self.can_move(new_y, new_x, is_player=True):
+
+            # --- ЛОГИКА ДВЕРЕЙ ---
+            if (new_y, new_x) in self.current_level.doors:
+                req_color = self.current_level.doors[(new_y, new_x)]
+                if req_color in self.collected_keys:
+                    # Ключ есть! Открываем дверь
+                    del self.current_level.doors[(new_y, new_x)]
+                    self.action_msg = f"Unlocked the {req_color} door!"
+                else:
+                    # Ключа нет! Отменяем шаг
+                    self.action_msg = f"The door is locked. You need the {req_color} key!"
+                    new_y, new_x = self.player.y, self.player.x
+                    turn_taken = False
+
             if (self.player.y, self.player.x) != (new_y, new_x):
                 self.player.y, self.player.x = new_y, new_x
                 turn_taken = True
@@ -111,7 +134,15 @@ class Game:
 
             pos = (self.player.y, self.player.x)
 
-            if pos in self.current_level.item_drops:
+            # --- ЛОГИКА ПОДБОРА КЛЮЧЕЙ ---
+            if pos in self.current_level.keys:
+                key_color = self.current_level.keys[pos]
+                self.collected_keys.add(key_color)
+                del self.current_level.keys[pos]
+                self.action_msg = f"Picked up the {key_color} key!"
+
+            # Подбор предметов
+            elif pos in self.current_level.item_drops:
                 drop_info = self.current_level.item_drops[pos]
                 category = drop_info["category"]
                 item = drop_info["item"]
@@ -128,6 +159,7 @@ class Game:
                 if not item_added:
                     self.action_msg = f"Inventory full! Can't pick up {item.name}."
 
+            # Переход на следующий уровень
             if pos == self.current_level.end_pos:
                 self.player_stage += 1
 
@@ -149,7 +181,6 @@ class Game:
             if enemy.hp > 0:
                 enemy.act(self)
 
-    # Прокси-методы для инвентаря (чтобы не переписывать логику меню инвентаря)
     def use_item(self, category: str, slot_idx: int) -> str:
         return self.player.use_item(category, slot_idx)
 
@@ -157,13 +188,13 @@ class Game:
         return self.player.drop_item(category, slot_idx)
 
     def save_game_data_to_dict(self) -> dict:
-        # Обновляем актуальные данные перед сохранением
         self.stats["treasures"] = self.player.gold
         self.stats["level_reached"] = self.player_stage
 
         return {
             "stats": self.stats,
             "stage": self.player_stage,
+            "collected_keys": list(self.collected_keys),  # Сохраняем ключи
             "player_data": self.player.to_dict()
         }
 
@@ -171,6 +202,9 @@ class Game:
     def from_dict(cls, data: dict):
         game = cls.__new__(cls)
         game.player_stage = data.get("stage", 1)
+
+        # Загружаем ключи
+        game.collected_keys = set(data.get("collected_keys", []))
 
         game.stats = data.get("stats", {
             "treasures": 0, "level_reached": 1, "enemies_killed": 0,
@@ -215,7 +249,6 @@ class Game:
         return game
 
     def unequip_weapon(self) -> str:
-        """Снимает текущее оружие и убирает его в инвентарь (0 по ТЗ)"""
         if self.player.current_weapon:
             msg = f"You put away your {self.player.current_weapon.name}."
             self.player.current_weapon = None
