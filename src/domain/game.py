@@ -34,7 +34,7 @@ class Game:
         self.player.y, self.player.x = self.current_level.start_pos
 
     def get_score(self):
-        return self.player_score
+        return self.player.gold
 
     def can_move(self, target_y: int, target_x: int, is_player: bool = False) -> bool:
         if not is_player and hasattr(self, 'current_level') and (target_y, target_x) in self.current_level.doors:
