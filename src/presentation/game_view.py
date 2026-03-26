@@ -12,17 +12,26 @@ class GameView:
         self.stdscr.clear()
         height, width = self.stdscr.getmaxyx()
 
+        map_h = 28
+        map_w = 75
+
+        off_y = max(3, (height - map_h) // 2)
+        # Смещение по X
+        off_x = max(0, (width - map_w) // 2)
+
         self.draw_panel(game, height, width)
-        self.draw_field(game, height, width)
+        self.draw_field(game, height, width, off_y, off_x)
         self.draw_bottom_panel(game, height, width)
-        self.draw_player(game)
+        self.draw_player(game, off_y, off_x)
 
         self.stdscr.refresh()
 
-    def draw_player(self, game):
+    def draw_player(self, game, off_y, off_x):
         height, width = self.stdscr.getmaxyx()
-        if 0 <= game.player.y < height and 0 <= game.player.x < width:
-            self.stdscr.addch(game.player.y, game.player.x, game.player.char, curses.color_pair(7) | curses.A_BOLD)
+        # Прибавляем смещение к координатам игрока
+        py, px = game.player.y + off_y, game.player.x + off_x
+        if 0 <= py < height and 0 <= px < width:
+            self.stdscr.addch(py, px, game.player.char, curses.color_pair(7) | curses.A_BOLD)
 
     def draw_panel(self, game, height, width):
         active_buffs = []
@@ -32,123 +41,149 @@ class GameView:
             if current_time < effect["end_time"]:
                 active_buffs.append(f"{effect['type'].upper()}+{effect['value']}")
 
-        if len(active_buffs) != 0:
+        if active_buffs:
             buffs_text = " | ".join(active_buffs[:3])
-            if len(active_buffs) > 3:
-                buffs_text += " + ..."
-            status = f"Game started for {game.player.name}! Score: {game.player.gold} Active buffs: {buffs_text}"
+            status = f"Hero: {game.player.name} | Score: {game.player.gold} | Buffs: {buffs_text}"
         else:
-            status = f"Game started for {game.player.name}! Score: {game.player.gold} No active buffs"
+            status = f"Hero: {game.player.name} | Score: {game.player.gold} | No active buffs"
 
         y_status = 0
         x_status = max(0, (width - len(status)) // 2)
         self.stdscr.addstr(y_status, x_status, status[:width - 1], curses.color_pair(4) | curses.A_BOLD)
 
+
         if hasattr(game, 'action_msg') and game.action_msg:
-            hint_controls = f">>> {game.action_msg} <<<"
-        else:
-            hint_controls = "<Press 'W', 'A', 'S', 'D' or arrows to move! ('q' to quit, 'i' to open inventory)>"
+            msg = f">>> {game.action_msg} <<<"
+            y_msg = y_status + 1
+            x_msg = max(0, (width - len(msg)) // 2)
+            self.stdscr.addstr(y_msg, x_msg, msg[:width - 1], curses.color_pair(2) | curses.A_BOLD)
 
-        y_hint_controls = y_status + 2
-        x_hint_controls = max(0, (width - len(hint_controls)) // 2)
-        self.stdscr.addstr(y_hint_controls, x_hint_controls, hint_controls[:width - 1], curses.color_pair(3))
+        controls = (
+            "[Arrows/WASD]:Move [i]:Inventory  "
+            "[h]:Weapon  [k]:Elixir  [e]:Scroll  [j]:Food  "
+            "[q]:Quit"
+        )
 
-    def draw_field(self, game, height, width):
-        safe_y = 3
+        y_controls = y_status + 2
+        x_controls = max(0, (width - len(controls)) // 2)
+
+        # Печатаем подсказку (используем тусклый цвет, чтобы не отвлекала от игры)
+        self.stdscr.addstr(y_controls, x_controls, controls[:width - 1], curses.color_pair(3))
+
+    def draw_field(self, game, height, width, off_y, off_x):
         wall_positions = set()
         room_floor_positions = set()
 
         # --- СЛОЙ 1: ПОЛ И КОРИДОРЫ ---
-        # Сначала собираем все клетки пола комнат
         for room in game.current_level.rooms:
             for ry in range(room.y, room.y + room.height):
                 for rx in range(room.x, room.x + room.width):
-                    if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
+                    # Применяем смещение
+                    dy, dx = ry + off_y, rx + off_x
+                    if 0 <= dy < height - 1 and 0 <= dx < width - 1:
                         room_floor_positions.add((ry, rx))
-                        # Пол рисуем только если клетка видна ПРЯМО СЕЙЧАС
                         if (ry, rx) in game.fow.visible_cells:
-                            self.stdscr.addch(ry, rx, '.', curses.color_pair(3))
+                            self.stdscr.addch(dy, dx, '.', curses.color_pair(3))
 
-        # Рисуем коридоры
         for y, x in game.current_level.corridors:
-            if safe_y <= y < height - 1 and 0 <= x < width - 1:
-                # Если клетка коридора не внутри комнаты
+            dy, dx = y + off_y, x + off_x
+            if 0 <= dy < height - 1 and 0 <= dx < width - 1:
                 if (y, x) not in room_floor_positions:
                     if (y, x) in game.fow.visible_cells:
-                        # Яркий коридор в зоне видимости [cite: 313]
-                        self.stdscr.addch(y, x, '▒', curses.color_pair(3))
+                        self.stdscr.addch(dy, dx, '▒', curses.color_pair(3))
                     elif (y, x) in game.fow.explored_cells:
-                        # Тусклая точка для исследованного, но скрытого туманом коридора
-                        self.stdscr.addch(y, x, '·', curses.color_pair(3))
+                        self.stdscr.addch(dy, dx, '·', curses.color_pair(3))
 
-        # --- СЛОЙ 2: СТЕНЫ КОМНАТ ---
-        # Стены отображаются, если они были хоть раз исследованы
+        # --- СЛОЙ 2: СТЕНЫ ---
         for room in game.current_level.rooms:
-            # Горизонтальные стены
+            # Горизонтальные
             for rx in range(room.x - 1, room.x + room.width + 1):
                 for ry in [room.y - 1, room.y + room.height]:
-                    if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
+                    dy, dx = ry + off_y, rx + off_x
+                    if 0 <= dy < height - 1 and 0 <= dx < width - 1:
                         wall_positions.add((ry, rx))
                         if (ry, rx) in game.fow.explored_cells:
-                            self.stdscr.addch(ry, rx, '═', curses.color_pair(2) | curses.A_BOLD)
-
-            # Вертикальные стены
+                            self.stdscr.addch(dy, dx, '═', curses.color_pair(2) | curses.A_BOLD)
+            # Вертикальные
             for ry in range(room.y - 1, room.y + room.height + 1):
                 for rx in [room.x - 1, room.x + room.width]:
-                    if safe_y <= ry < height - 1 and 0 <= rx < width - 1:
+                    dy, dx = ry + off_y, rx + off_x
+                    if 0 <= dy < height - 1 and 0 <= dx < width - 1:
                         wall_positions.add((ry, rx))
                         if (ry, rx) in game.fow.explored_cells:
-                            self.stdscr.addch(ry, rx, '║', curses.color_pair(2) | curses.A_BOLD)
-
-            # Углы комнат
+                            self.stdscr.addch(dy, dx, '║', curses.color_pair(2) | curses.A_BOLD)
+            # Углы
             corners = [
                 (room.y - 1, room.x - 1, '╔'), (room.y - 1, room.x + room.width, '╗'),
                 (room.y + room.height, room.x - 1, '╚'), (room.y + room.height, room.x + room.width, '╝')
             ]
             for cy, cx, char in corners:
-                if safe_y <= cy < height - 1 and 0 <= cx < width - 1:
+                dy, dx = cy + off_y, cx + off_x
+                if 0 <= dy < height - 1 and 0 <= dx < width - 1:
                     if (cy, cx) in game.fow.explored_cells:
-                        self.stdscr.addch(cy, cx, char, curses.color_pair(2) | curses.A_BOLD)
+                        self.stdscr.addch(dy, dx, char, curses.color_pair(2) | curses.A_BOLD)
 
-        # --- СЛОЙ 3: ДВЕРИ (ОБЫЧНЫЕ И ЗАПЕРТЫЕ) ---
-        # 1. Обычные проемы (где коридор пересекает стену)
+        # --- СЛОЙ 3: ДВЕРИ И ВЫХОД ---
+        door_colors = {"Red": 1, "Blue": 4, "Yellow": 3}
+        # Обычные проемы
         for y, x in game.current_level.corridors:
+            dy, dx = y + off_y, x + off_x
             if (y, x) in wall_positions and (y, x) in game.fow.explored_cells:
-                # Рисуем стандартный дверной проем
-                self.stdscr.addch(y, x, '▦', curses.color_pair(4) | curses.A_BOLD)
+                if 0 <= dy < height - 1 and 0 <= dx < width - 1:
+                    self.stdscr.addch(dy, dx, '▦', curses.color_pair(4) | curses.A_BOLD)
 
-        door_colors = {"Red": 1, "Blue": 7, "Yellow": 2}
-        for (dy, dx), color_name in game.current_level.doors.items():
-            if safe_y <= dy < height - 1 and 0 <= dx < width - 1:
-                if (dy, dx) in game.fow.explored_cells:
+        # Цветные двери
+        for (dy_map, dx_map), color_name in game.current_level.doors.items():
+            dy, dx = dy_map + off_y, dx_map + off_x
+            if 0 <= dy < height - 1 and 0 <= dx < width - 1:
+                if (dy_map, dx_map) in game.fow.explored_cells:
                     c_pair = door_colors.get(color_name, 7)
                     self.stdscr.addch(dy, dx, '▦', curses.color_pair(c_pair) | curses.A_BOLD)
 
-        end_y, end_x = game.current_level.end_pos
-        if (end_y, end_x) in game.fow.explored_cells:
-            self.stdscr.addch(end_y, end_x, '╬', curses.color_pair(7) | curses.A_BOLD)
+        # Выход
+        ey_map, ex_map = game.current_level.end_pos
+        ey, ex = ey_map + off_y, ex_map + off_x
+        if 0 <= ey < height - 1 and 0 <= ex < width - 1:
+            if (ey_map, ex_map) in game.fow.explored_cells:
+                self.stdscr.addch(ey, ex, '╬', curses.color_pair(7) | curses.A_BOLD)
 
-        for (ky, kx), color_name in game.current_level.keys.items():
-            if (ky, kx) in game.fow.visible_cells:
-                c_pair = door_colors.get(color_name, 7)
-                self.stdscr.addch(ky, kx, '⚷', curses.color_pair(c_pair) | curses.A_BOLD | curses.A_BLINK)
+        # --- СЛОЙ 4: ПРЕДМЕТЫ И ВРАГИ ---
+        # Ключи
+        for (ky_map, kx_map), color_name in game.current_level.keys.items():
+            ky, kx = ky_map + off_y, kx_map + off_x
+            if 0 <= ky < height - 1 and 0 <= kx < width - 1:
+                if (ky_map, kx_map) in game.fow.visible_cells:
+                    try:
+                        c_pair = door_colors.get(color_name, 7)
+                        self.stdscr.addstr(ky, kx, '⚷', curses.color_pair(c_pair) | curses.A_BOLD | curses.A_BLINK)
+                    except curses.error:
+                        pass
 
         # Предметы
         char_map = {"Weapon": "†", "Potion": "ð", "Scroll": "§", "Food": "♣"}
         color_map = {"Weapon": 3, "Potion": 1, "Scroll": 2, "Food": 4}
-        for (iy, ix), drop_info in game.current_level.item_drops.items():
-            if (iy, ix) in game.fow.visible_cells:
-                category = drop_info["category"]
-                char = char_map.get(category, "*")
-                color_id = color_map.get(category, 7)
-                self.stdscr.addch(iy, ix, char, curses.color_pair(color_id) | curses.A_BOLD)
+        for (iy_map, ix_map), drop_info in game.current_level.item_drops.items():
+            iy, ix = iy_map + off_y, ix_map + off_x
+            if 0 <= iy < height - 1 and 0 <= ix < width - 1:
+                if (iy_map, ix_map) in game.fow.visible_cells:
+                    try:
+                        category = drop_info["category"]
+                        self.stdscr.addstr(iy, ix, char_map.get(category, "*"),
+                                           curses.color_pair(color_map.get(category, 7)) | curses.A_BOLD)
+                    except curses.error:
+                        pass
 
         # Враги
         for enemy in game.current_level.enemies:
-            if (enemy.y, enemy.x) in game.fow.visible_cells:
-                if enemy.is_visible():
-                    self.stdscr.addch(enemy.y, enemy.x, enemy.char,
-                                      curses.color_pair(enemy.color_pair) | curses.A_BOLD)
+            ey, ex = enemy.y + off_y, enemy.x + off_x
+            if 0 <= ey < height - 1 and 0 <= ex < width - 1:
+                if (enemy.y, enemy.x) in game.fow.visible_cells:
+                    if enemy.is_visible():
+                        try:
+                            self.stdscr.addch(ey, ex, enemy.char,
+                                              curses.color_pair(enemy.color_pair) | curses.A_BOLD)
+                        except curses.error:
+                            pass
 
     def draw_bottom_panel(self, game, height, width):
         def make_bar(current, maximum, length=10):
