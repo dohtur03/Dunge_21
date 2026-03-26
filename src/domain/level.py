@@ -27,22 +27,19 @@ class Room:
 
 
 class Level:
-    def __init__(self, stage: int, max_width: int, max_height: int):
+    def __init__(self, stage: int, max_width: int, max_height: int, director=None):
         self.stage = stage
         self.max_width = max_width
         self.max_height = max_height
+        self.director = director  # Сохраняем Режиссера
 
         self.rooms: list[Room] = []
         self.corridors: set[tuple[int, int]] = set()
         self.corridor_segments: list[set[tuple[int, int]]] = []
-
-
         self.doors: dict[tuple[int, int], str] = {}
         self.keys: dict[tuple[int, int], str] = {}
-
         self.enemies: list[Enemy] = []
         self.item_drops: dict[tuple[int, int], dict] = {}
-
         self.start_pos = (0, 0)
         self.player_start_pos = (0, 0)
         self.end_pos = (0, 0)
@@ -206,39 +203,59 @@ class Level:
     def _spawn_entities(self):
         available_classes = [Zombie, Ghost, Vampire, SnakeMage, Ogre, Mimic]
 
+        food_to_spawn = self.director.get_guaranteed_health_drops() if self.director else 0
+
         for room in self.rooms:
             if room.is_start: continue
 
             min_enemies = 0
             if self.stage >= 10: min_enemies = 1
             if self.stage >= 18: min_enemies = 2
-
             max_enemies = min(5, 1 + (self.stage // 4))
+
+            if self.director:
+                modifier = self.director.get_enemy_count_modifier()
+                max_enemies = max(1, int(max_enemies * modifier))
+                min_enemies = int(min_enemies * modifier)
+
             num_enemies = random.randint(min_enemies, max_enemies)
+
+            stat_buff = self.director.get_enemy_stats_buff() if self.director else 0
 
             for _ in range(num_enemies):
                 ey = random.randint(room.y, room.y + room.height - 1)
                 ex = random.randint(room.x, room.x + room.width - 1)
 
-                if (ey, ex) != self.end_pos and (ey, ex) not in self.keys:  # Чтобы моб не встал на ключ
+                if (ey, ex) != self.end_pos and (ey, ex) not in self.keys:
                     EnemyClass = random.choice(available_classes)
                     enemy = EnemyClass(ey, ex, room)
 
-                    extra_hp = (self.stage - 1) * 3
-                    enemy.max_hp += extra_hp
-                    enemy.hp += extra_hp
+                    extra_hp = (self.stage - 1) * 3 + (stat_buff * 5)
+                    enemy.max_hp = max(1, enemy.max_hp + extra_hp)
+                    enemy.hp = enemy.max_hp
 
-                    extra_str = self.stage // 5
-                    enemy.strength += extra_str
+                    extra_str = (self.stage // 5) + stat_buff
+                    enemy.strength = max(1, enemy.strength + extra_str)
 
                     self.enemies.append(enemy)
 
-            if random.random() < 0.4:
+            item_chance = self.director.get_item_spawn_chance() if self.director else 0.4
+            force_food = False
+
+            if food_to_spawn > 0 and random.random() < 0.6:
+                item_chance = 1.0
+                force_food = True
+
+            if random.random() < item_chance:
                 iy = random.randint(room.y, room.y + room.height - 1)
                 ix = random.randint(room.x, room.x + room.width - 1)
 
                 if (iy, ix) != self.end_pos and (iy, ix) not in self.item_drops and (iy, ix) not in self.keys:
-                    category = random.choice(list(Item.items.keys()))
+                    category = "Food" if force_food else random.choice(list(Item.items.keys()))
+
+                    if force_food:
+                        food_to_spawn -= 1
+
                     item_data = random.choice(Item.items[category])
 
                     item = Item(

@@ -1,9 +1,9 @@
-import time
 import random
 from domain.level import Level
 from domain.player import Player
 from domain.inventory import Inventory
 from domain.item import Item
+from domain.director import GameDirector
 
 
 class Game:
@@ -11,6 +11,7 @@ class Game:
         self.action_msg = ""
         self.player_stage = 1
         self.player = Player(player_name, self)
+        self.director = GameDirector()  # Создаем Режиссера
         self.stats = {
             "treasures": 0,
             "level_reached": 1,
@@ -22,23 +23,20 @@ class Game:
             "hits_taken": 0,
             "cells_walked": 0
         }
-        # Инициализируем связку ключей
         self.collected_keys = set()
         self.generate_new_stage()
 
     def generate_new_stage(self):
-        # При переходе на новый уровень старые ключи сбрасываются (как в DOOM)
         self.collected_keys.clear()
-        self.current_level = Level(self.player_stage, 75, 28)
+        # Передаем Режиссера в генератор уровня!
+        self.current_level = Level(self.player_stage, 75, 28, self.director)
         self.current_level.generate_level()
         self.player.y, self.player.x = self.current_level.start_pos
 
     def get_score(self):
         return self.player_score
 
-    # Добавили аргумент is_player, чтобы отличать игрока от монстров
     def can_move(self, target_y: int, target_x: int, is_player: bool = False) -> bool:
-        # Враги не умеют открывать двери и упираются в них как в стену
         if not is_player and hasattr(self, 'current_level') and (target_y, target_x) in self.current_level.doors:
             return False
 
@@ -111,18 +109,13 @@ class Game:
                 self.action_msg = f"{enemy_hit.name} DODGED!"
             turn_taken = True
 
-        # Сообщаем функции can_move, что ходит именно игрок
         elif self.can_move(new_y, new_x, is_player=True):
-
-            # --- ЛОГИКА ДВЕРЕЙ ---
             if (new_y, new_x) in self.current_level.doors:
                 req_color = self.current_level.doors[(new_y, new_x)]
                 if req_color in self.collected_keys:
-                    # Ключ есть! Открываем дверь
                     del self.current_level.doors[(new_y, new_x)]
                     self.action_msg = f"Unlocked the {req_color} door!"
                 else:
-                    # Ключа нет! Отменяем шаг
                     self.action_msg = f"The door is locked. You need the {req_color} key!"
                     new_y, new_x = self.player.y, self.player.x
                     turn_taken = False
@@ -134,14 +127,12 @@ class Game:
 
             pos = (self.player.y, self.player.x)
 
-            # --- ЛОГИКА ПОДБОРА КЛЮЧЕЙ ---
             if pos in self.current_level.keys:
                 key_color = self.current_level.keys[pos]
                 self.collected_keys.add(key_color)
                 del self.current_level.keys[pos]
                 self.action_msg = f"Picked up the {key_color} key!"
 
-            # Подбор предметов
             elif pos in self.current_level.item_drops:
                 drop_info = self.current_level.item_drops[pos]
                 category = drop_info["category"]
@@ -159,18 +150,26 @@ class Game:
                 if not item_added:
                     self.action_msg = f"Inventory full! Can't pick up {item.name}."
 
-            # Переход на следующий уровень
             if pos == self.current_level.end_pos:
                 self.player_stage += 1
-
                 if self.player_stage > 21:
                     return "win"
+
+                # --- БАЛАНС: Оцениваем успехи перед новым уровнем! ---
+                self.director.evaluate_performance(self.player)
 
                 self.generate_new_stage()
                 return "stage_cleared"
 
         if turn_taken:
+            self.director.record_turn()  # Считаем ходы
+            hp_before = self.player.hits  # Запоминаем ХП до атак мобов
+
             self._process_enemies()
+
+            # Если ХП убавилось, докладываем Режиссеру об уроне
+            if self.player.hits < hp_before:
+                self.director.record_damage_taken(hp_before - self.player.hits)
 
         if self.player.hits <= 0:
             return "died"
@@ -190,11 +189,11 @@ class Game:
     def save_game_data_to_dict(self) -> dict:
         self.stats["treasures"] = self.player.gold
         self.stats["level_reached"] = self.player_stage
-
         return {
             "stats": self.stats,
             "stage": self.player_stage,
-            "collected_keys": list(self.collected_keys),  # Сохраняем ключи
+            "collected_keys": list(self.collected_keys),
+            "difficulty": self.director.difficulty_multiplier,  # Сохраняем сложность
             "player_data": self.player.to_dict()
         }
 
@@ -202,9 +201,11 @@ class Game:
     def from_dict(cls, data: dict):
         game = cls.__new__(cls)
         game.player_stage = data.get("stage", 1)
-
-        # Загружаем ключи
         game.collected_keys = set(data.get("collected_keys", []))
+
+        # Восстанавливаем Режиссера
+        game.director = GameDirector()
+        game.director.difficulty_multiplier = data.get("difficulty", 1.0)
 
         game.stats = data.get("stats", {
             "treasures": 0, "level_reached": 1, "enemies_killed": 0,
@@ -214,7 +215,6 @@ class Game:
 
         p_data = data.get("player_data", data)
         p_name = p_data.get("name", p_data.get("player_name", "Hero"))
-
         game.player = Player(p_name, game)
         game.player.y, game.player.x = p_data.get("position", [0, 0])
         game.player.hits = p_data.get("hits", p_data.get("player_hits", 10))
@@ -226,7 +226,6 @@ class Game:
 
         exp_to_level = p_data.get("exp_to_level_up", p_data.get("player_exp_to_level_up", 50))
         game.player.exp_to_level_up = 50 if exp_to_level == "?" else exp_to_level
-
         game.player.level = p_data.get("level", p_data.get("player_level", 1))
         game.player.potion_effects = p_data.get("potion_effects", [])
 
@@ -243,7 +242,8 @@ class Game:
 
         game.player.update_stats()
 
-        game.current_level = Level(game.player_stage, 75, 28)
+        # Передаем Режиссера при загрузке
+        game.current_level = Level(game.player_stage, 75, 28, game.director)
         game.current_level.generate_level()
 
         return game
