@@ -21,21 +21,21 @@ class Enemy:
         self.is_engaged = True
         return True
 
-    def attack(self, player) -> str:
-        """Наносит урон с учетом шанса уклонения игрока"""
+    def attack(self, game) -> str:
+        player = game.player
         dodge_chance = min(player.agility * 0.01, 0.60)
 
-        # Бросаем кубик (от 0.0 до 1.0)
         if random.random() < dodge_chance:
             return f"Dodged! {self.name}'s attack missed."
 
         player.hits -= self.strength
+        game.stats["hits_taken"] += 1
         return ""
 
     def act(self, game):
         dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
         if dist == 1:
-            msg = self.attack(game.player)
+            msg = self.attack(game)
             if msg: game.action_msg = msg
         elif dist <= self.hostility or self.is_engaged:
             self.is_engaged = True
@@ -115,12 +115,12 @@ class Vampire(Enemy):
         self.hp -= damage
         return True
 
-    def attack(self, player):
-        result = super().attack(player)
+    def attack(self, game):
+        player = game.player
+        result = super().attack(game)
         if "Dodged" in result:
             return result
-
-        player.max_hits = max(1, player.max_hits - 1)  # Крадет Макс ХП
+        player.max_hits = max(1, player.max_hits - 1)
         if player.hits > player.max_hits: player.hits = player.max_hits
         return "Vampire drained your MAX HP!"
 
@@ -189,18 +189,16 @@ class Ogre(Enemy):
                 if not moved:
                     self.wander(game)
 
+
     def attack(self, game) -> str:
         player = game.player
-        dodge_chance = min(player.agility * 0.01, 0.60)
-
-        if random.random() < dodge_chance:
-            return f"Dodged! {self.name}'s attack missed."
-
-        player.hits -= self.strength
-
-        game.stats["hits_taken"] += 1
-
-        return ""
+        if self.guaranteed_hit:
+            player.hits -= self.strength
+            game.stats["hits_taken"] += 1
+            self.guaranteed_hit = False
+            return "Ogre uses GUARANTEED COUNTERATTACK!"
+        else:
+            return super().attack(game)
 
 class SnakeMage(Enemy):
     def __init__(self, y, x, room):
@@ -223,8 +221,9 @@ class SnakeMage(Enemy):
         else:
             self.diag_dir = random.choice([(1, 1), (1, -1), (-1, 1), (-1, -1)])
 
-    def attack(self, player):
-        result = super().attack(player)
+    def attack(self, game):
+        player = game.player
+        result = super().attack(game)
         if "Dodged" in result:
             return result
 
@@ -232,3 +231,46 @@ class SnakeMage(Enemy):
             player.sleep_turns += 1
             return "Snake-Mage put you to SLEEP!"
         return ""
+
+
+class Mimic(Enemy):
+    def __init__(self, y, x, room):
+        super().__init__(y, x, room)
+        self.name = "Mimic"
+        disguises = [("†", 3), ("ð", 1), ("§", 2), ("♣", 4)]
+        chosen_char, chosen_color = random.choice(disguises)
+        self.char = chosen_char
+        self.color_pair = chosen_color
+
+        self.is_disguised = True
+
+        self.hp = 30
+        self.strength = 1
+        self.agility = 9
+        self.hostility = 1
+        self.exp_reward = 25
+
+    def reveal(self):
+        if self.is_disguised:
+            self.is_disguised = False
+            self.char = "m"
+            self.color_pair = 3
+            return "The item suddenly bites you! It's a Mimic!"
+        return ""
+
+    def take_damage(self, damage: int):
+        self.reveal()
+        return super().take_damage(damage)
+
+    def act(self, game):
+        if self.is_disguised:
+            dist = abs(self.y - game.player.y) + abs(self.x - game.player.x)
+            if dist <= 1:
+                msg = self.reveal()
+                if msg: game.action_msg = msg
+                attack_msg = self.attack(game)
+                if attack_msg: game.action_msg = f"{msg} {attack_msg}"
+            else:
+                return
+        else:
+            super().act(game)

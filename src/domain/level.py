@@ -128,7 +128,7 @@ class Level:
 
         return  start_room, exit_room
     def _spawn_entities(self):
-        available_classes = [Zombie, Ghost, Vampire, SnakeMage, Ogre]
+        available_classes = [Zombie, Ghost, Vampire, SnakeMage, Ogre, Mimic]
 
         for room in self.rooms:
             if room.is_start: continue
