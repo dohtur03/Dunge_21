@@ -64,8 +64,16 @@ class Game:
             new_x += 1
         elif key == 105:
             return "open_inventory"
-        elif key == 113:
+        elif key == 113:  # 'q' - Выход из игры
             return "request_quit"
+        elif key == 104:  # 'h' - Оружие
+            return "classic_inv_Weapon"
+        elif key == 106:  # 'j' - Еда
+            return "classic_inv_Food"
+        elif key == 107:  # 'k' - Зелья
+            return "classic_inv_Potion"
+        elif key == 101:  # 'e' - Свитки
+            return "classic_inv_Scroll"
 
         enemy_hit = None
         for enemy in self.current_level.enemies:
@@ -196,3 +204,12 @@ class Game:
         game.current_level.generate_level()
 
         return game
+
+    def unequip_weapon(self) -> str:
+        """Снимает текущее оружие и убирает его в инвентарь (0 по ТЗ)"""
+        if self.player.current_weapon:
+            msg = f"You put away your {self.player.current_weapon.name}."
+            self.player.current_weapon = None
+            self.player.update_stats()
+            return msg
+        return "Your hands are already empty."

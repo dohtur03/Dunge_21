@@ -59,6 +59,13 @@ def run_game_loop(stdscr, game, view):
             inv_view = InventoryView(stdscr, view)
             inv_view.show(game)
 
+        # --- НОВЫЙ БЛОК: Олдскульный инвентарь (h, j, k, e) по ТЗ ---
+        elif isinstance(action, str) and action.startswith("classic_inv_"):
+        # Разрезаем строку "classic_inv_Weapon" по "_" и берем 3-ю часть -> "Weapon"
+            category = action.split("_")[2]
+            inv_view = InventoryView(stdscr, view)
+            inv_view.show_classic_inventory(game, category)
+
 
 def main(stdscr):
     game = None

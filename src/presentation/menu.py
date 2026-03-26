@@ -235,7 +235,7 @@ class Menu():
             self.stdscr.timeout(-1)
             key = self.stdscr.getch()
             break
-    
+
     def settings_menu(self) -> None:
         height, width = self.stdscr.getmaxyx()
         selected = 0
@@ -243,8 +243,7 @@ class Menu():
 
         while True:
             self.stdscr.clear()
-            
-            height, width = self.stdscr.getmaxyx()
+
             big_block = big_settings
             block_h = len(big_block)
             y_title = height // 4 - block_h // 2
@@ -255,11 +254,13 @@ class Menu():
                     x = (width - len(line)) // 2
                     self.stdscr.addstr(y, x, line, curses.color_pair(2) | curses.A_BOLD)
 
+            # Возвращаем 2 опции
             options_h = 2
             center_y = height // 2
             y_sound = center_y - options_h // 2
-            y_back  = y_sound + 2
-            
+            y_back = y_sound + 2
+
+            # 1. Звук
             sound_text = f"Sound: {'ON' if self.sound_on else 'OFF'}"
             pointer = "▶" if selected == 0 else " "
             line_sound = f"{pointer} {sound_text}"
@@ -269,6 +270,7 @@ class Menu():
             x_sound = (width - len(line_sound)) // 2
             self.stdscr.addstr(y_sound, x_sound, line_sound, attr_sound)
 
+            # 2. Назад
             pointer_back = "▶" if selected == 1 else " "
             line_back = f"{pointer_back} Back"
 
@@ -276,7 +278,7 @@ class Menu():
             attr_back = color_back | (curses.A_BOLD if selected == 1 else 0)
             x_back = (width - len(line_back)) // 2
             self.stdscr.addstr(y_back, x_back, line_back, attr_back)
-            
+
             self.stdscr.refresh()
 
             blink = not blink
@@ -286,7 +288,7 @@ class Menu():
             if key == -1:
                 continue
             if key == curses.KEY_UP:
-                selected = (selected - 1) % 2
+                selected = (selected - 1) % 2  # Вернули остаток от деления на 2
             elif key == curses.KEY_DOWN:
                 selected = (selected + 1) % 2
             elif key in (curses.KEY_ENTER, 10, 13):
