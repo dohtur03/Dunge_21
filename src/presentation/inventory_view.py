@@ -131,11 +131,11 @@ class InventoryView:
             attr = (curses.color_pair(2 if blink else 3) | curses.A_BOLD) if 9 == selected else curses.color_pair(3)
             win.addstr(start_y + 9, max(1, (w - len(back_line)) // 2), back_line, attr)
 
-            # --- НОВАЯ ЗЕЛЕНАЯ ПОДСКАЗКА С '0' ---
+            # --- ОБНОВЛЕННАЯ ЗЕЛЕНАЯ ПОДСКАЗКА ---
             if category == "Weapon":
-                hint = "<'Enter' use, '0' unequip, 'q' back>"
+                hint = "<'Enter'/'1-9' use, '0' unequip, 'q' back>"
             else:
-                hint = "<'Enter' use, '0' drop, 'q' back>"
+                hint = "<'Enter'/'1-9' use, '0' drop, 'q' back>"
 
             hint_x = max(1, (w - len(hint)) // 2)
             win.addstr(h - 2, hint_x, hint[:w - 4], curses.color_pair(4) | curses.A_BOLD)
@@ -170,6 +170,29 @@ class InventoryView:
                     msg = game.drop_item(category, selected)
                     if msg:
                         game.action_msg = msg
+
+            # --- НОВАЯ ЛОГИКА: Быстрое применение на 1-9 ---
+            elif ord('1') <= key <= ord('9'):
+                slot_idx = key - ord('1')  # '1' -> 0, '2' -> 1 и т.д.
+                msg = game.use_item(category, slot_idx)
+                if msg:
+                    game.action_msg = msg
+            # -----------------------------------------------
+
+            elif key == curses.KEY_UP:
+                selected = (selected - 1) % 10
+            elif key == curses.KEY_DOWN:
+                selected = (selected + 1) % 10
+            elif key in (curses.KEY_ENTER, 10, 13):
+                if selected == back_index:
+                    win.clear()
+                    win.refresh()
+                    del win
+                    return
+
+                msg = game.use_item(category, selected)
+                if msg:
+                    game.action_msg = msg
 
             elif key == curses.KEY_UP:
                 selected = (selected - 1) % 10
