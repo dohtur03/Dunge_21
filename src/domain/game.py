@@ -9,13 +9,19 @@ from domain.item import Item
 class Game:
     def __init__(self, player_name: str):
         self.action_msg = ""
-        self.start_time = time.time()
-        self.player_score = 0
         self.player_stage = 1
-
-        # Теперь Игрок — это отдельный независимый объект
         self.player = Player(player_name, self)
-
+        self.stats = {
+            "treasures": 0,  # Количество сокровищ (счет)
+            "level_reached": 1,  # Достигнутый уровень
+            "enemies_killed": 0,  # Количество побежденных противников
+            "food_eaten": 0,  # Съеденная еда
+            "elixirs_drunk": 0,  # Выпитые эликсиры
+            "scrolls_read": 0,  # Прочитанные свитки
+            "hits_dealt": 0,  # Нанесенные удары
+            "hits_taken": 0,  # Полученные удары
+            "cells_walked": 0  # Пройденные клетки (шаги)
+        }
         self.generate_new_stage()
 
     def generate_new_stage(self):
@@ -36,7 +42,6 @@ class Game:
 
     def process_turn(self, key) -> str | None:
         self.player.update_effects()
-        self.player_score = int(time.time() - self.start_time)
         self.action_msg = ""
         turn_taken = False
 
@@ -82,6 +87,7 @@ class Game:
                 break
 
         if enemy_hit is not None:
+            self.stats["hits_dealt"] += 1
             hit_success = enemy_hit.take_damage(self.player.total_str)
             if hit_success:
                 if enemy_hit.hp <= 0:
@@ -101,16 +107,15 @@ class Game:
             if (self.player.y, self.player.x) != (new_y, new_x):
                 self.player.y, self.player.x = new_y, new_x
                 turn_taken = True
+                self.stats["cells_walked"] += 1
 
             pos = (self.player.y, self.player.x)
 
-            # 1. ПОДБОР ПРЕДМЕТОВ
             if pos in self.current_level.item_drops:
                 drop_info = self.current_level.item_drops[pos]
                 category = drop_info["category"]
                 item = drop_info["item"]
 
-                # Ищем пустой слот (теперь их 9 по ТЗ)
                 item_added = False
                 for i in range(9):
                     if self.player.inventory.category_items[category][i] is None:
@@ -123,17 +128,15 @@ class Game:
                 if not item_added:
                     self.action_msg = f"Inventory full! Can't pick up {item.name}."
 
-            # 2. Переход на следующий уровень
             if pos == self.current_level.end_pos:
                 self.player_stage += 1
 
                 if self.player_stage > 21:
-                    return "win"  # Возвращаем специальный статус победы
+                    return "win"
 
                 self.generate_new_stage()
                 return "stage_cleared"
 
-                # Как только игрок сделал действие - ходят враги
         if turn_taken:
             self._process_enemies()
 
@@ -154,19 +157,26 @@ class Game:
         return self.player.drop_item(category, slot_idx)
 
     def save_game_data_to_dict(self) -> dict:
+        # Обновляем актуальные данные перед сохранением
+        self.stats["treasures"] = self.player.gold
+        self.stats["level_reached"] = self.player_stage
+
         return {
-            "score": self.player_score,
+            "stats": self.stats,
             "stage": self.player_stage,
-            "start_time": self.start_time,
             "player_data": self.player.to_dict()
         }
 
     @classmethod
     def from_dict(cls, data: dict):
         game = cls.__new__(cls)
-        game.player_score = data.get("score", 0)
         game.player_stage = data.get("stage", 1)
-        game.start_time = data.get("start_time", time.time())
+
+        game.stats = data.get("stats", {
+            "treasures": 0, "level_reached": 1, "enemies_killed": 0,
+            "food_eaten": 0, "elixirs_drunk": 0, "scrolls_read": 0,
+            "hits_dealt": 0, "hits_taken": 0, "cells_walked": 0
+        })
 
         p_data = data.get("player_data", data)
         p_name = p_data.get("name", p_data.get("player_name", "Hero"))
@@ -192,7 +202,6 @@ class Game:
         weapon_data = p_data.get("current_weapon")
         if weapon_data:
             game.player.current_weapon = Item.from_dict(weapon_data)
-            # Привязываем ссылку к инвентарю
             for i, item in enumerate(game.player.inventory.category_items["Weapon"]):
                 if item and item.name == game.player.current_weapon.name:
                     game.player.inventory.category_items["Weapon"][i] = game.player.current_weapon

@@ -40,9 +40,9 @@ class GameView:
             buffs_text = " | ".join(active_buffs[:3])
             if len(active_buffs) > 3:
                 buffs_text += " + ..."
-            status = f"Game started for {game.player.name}! Score: {game.player_score} Active buffs: {buffs_text}"
+            status = f"Game started for {game.player.name}! Score: {game.player.gold} Active buffs: {buffs_text}"
         else:
-            status = f"Game started for {game.player.name}! Score: {game.player_score} No active buffs"
+            status = f"Game started for {game.player.name}! Score: {game.player.gold} No active buffs"
 
         y_status = 0
         x_status = max(0, (width - len(status)) // 2)

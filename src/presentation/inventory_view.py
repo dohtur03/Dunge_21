@@ -23,7 +23,6 @@ class InventoryView:
 
             while True:
                 game.player.update_effects()
-                game.player_score = int(time.time() - game.start_time)
 
                 self.game_view.render(game)
 

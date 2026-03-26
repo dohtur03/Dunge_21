@@ -91,15 +91,12 @@ class Player:
                 self.current_weapon = None
                 msg = f"{item.name} unequipped"
             else:
-                # Если уже есть надетое оружие - выбрасываем его!
                 if self.current_weapon is not None:
                     old_weapon = self.current_weapon
 
-                    # Ищем свободную соседнюю клетку для выброса
                     drop_y, drop_x = self.y, self.x
                     for dy, dx in [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, 1), (-1, 1), (1, -1)]:
                         ny, nx = self.y + dy, self.x + dx
-                        # Проверяем, можно ли туда ходить и нет ли там уже другого предмета
                         if self.game.can_move(ny, nx) and (ny, nx) not in self.game.current_level.item_drops:
                             drop_y, drop_x = ny, nx
                             break
@@ -110,7 +107,6 @@ class Player:
                         "item": old_weapon
                     }
 
-                    # Удаляем старое оружие из инвентаря
                     for i in range(9):
                         if self.inventory.category_items["Weapon"][i] is old_weapon:
                             self.inventory.category_items["Weapon"][i] = None
@@ -126,7 +122,7 @@ class Player:
         elif category == "Food":
             old_hits = self.hits
             if old_hits == self.max_hits:
-                msg = "HP full!"
+                return "HP full! You can't eat this right now."  # Защита от потери еды
             else:
                 self.hits += item.value
                 if self.hits >= self.max_hits:
@@ -134,7 +130,9 @@ class Player:
                     self.hits = self.max_hits
                 else:
                     msg = f"Eaten {item.name}! Restored {item.value} HP!"
-            self.inventory.category_items[category][slot_idx] = None
+
+                self.game.stats["food_eaten"] += 1
+                self.inventory.category_items[category][slot_idx] = None
 
         elif category == "Scroll":
             if item.effect_type == "max_hits":
@@ -147,12 +145,16 @@ class Player:
             elif item.effect_type == "strength":
                 self.str += item.value
                 msg = f"{item.name} used! Strength +{item.value}!"
+
+            self.game.stats["scrolls_read"] += 1
             self.inventory.category_items[category][slot_idx] = None
 
         elif category == "Potion":
             effect_duration = item.effect_duration * 60
             self.add_potion_effect(item.effect_type, item.value, effect_duration)
             msg = f"{item.name} used! {item.effect_type} +{item.value} for {item.effect_duration} min!"
+
+            self.game.stats["elixirs_drunk"] += 1
             self.inventory.category_items[category][slot_idx] = None
 
         return msg
