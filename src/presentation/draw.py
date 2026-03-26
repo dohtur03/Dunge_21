@@ -190,14 +190,14 @@ def draw_score(stdscr, height: int, width: int):
     w_gold = 20  # TREASURE COLLECTED
     w_kills = 18  # ENEMIES DEFEATED
     w_food = 15  # FOOD CONSUMED
-    w_pots = 14  # ELIXIRS USED
+    w_pots = 14  # POTIONS USED
     w_scrolls = 14  # SCROLLS READ
     w_hits = 17  # HITS MADE/TAKEN
     w_tiles = 16  # TILES TRAVERSED
 
     # Формируем строку заголовков
     headers = (f"{'PLAYER':<{w_name}} {'LVL REACHED':<{w_lvl}} {'TREASURE COLLECTED':<{w_gold}} "
-               f"{'ENEMIES DEFEATED':<{w_kills}} {'FOOD CONSUMED':<{w_food}} {'ELIXIRS USED':<{w_pots}} "
+               f"{'ENEMIES DEFEATED':<{w_kills}} {'FOOD CONSUMED':<{w_food}} {'POTIONS USED':<{w_pots}} "
                f"{'SCROLLS READ':<{w_scrolls}} {'HITS MADE/TAKEN':<{w_hits}} {'TILES TRAVERSED':<{w_tiles}}")
 
     # Считаем X для идеальной центровки всей строки
@@ -220,7 +220,7 @@ def draw_score(stdscr, height: int, width: int):
             level_reached = session_data.get("stage", stats.get("level_reached", 1))
             enemies_slain = stats.get("enemies_killed", 0)
             food_eaten = stats.get("food_eaten", 0)
-            potions_drunk = stats.get("elixirs_drunk", 0)
+            potions_drunk = stats.get("potions_drunk", 0)
             scrolls_read = stats.get("scrolls_read", 0)
             attacks_landed = stats.get("hits_dealt", 0)
             damage_received = stats.get("hits_taken", 0)

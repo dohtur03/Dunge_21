@@ -228,7 +228,7 @@ class Level:
 
                 if (ey, ex) != self.end_pos and (ey, ex) not in self.keys:
                     EnemyClass = random.choice(available_classes)
-                    enemy = EnemyClass(ey, ex, room)
+                    enemy = EnemyClass(ey, ex, room, self.stage, self.director)
 
                     extra_hp = (self.stage - 1) * 3 + (stat_buff * 5)
                     enemy.max_hp = max(1, enemy.max_hp + extra_hp)

@@ -18,7 +18,7 @@ class Game:
             "level_reached": 1,
             "enemies_killed": 0,
             "food_eaten": 0,
-            "elixirs_drunk": 0,
+            "potions_drunk": 0,
             "scrolls_read": 0,
             "hits_dealt": 0,
             "hits_taken": 0,
@@ -214,7 +214,7 @@ class Game:
 
         game.stats = data.get("stats", {
             "treasures": 0, "level_reached": 1, "enemies_killed": 0,
-            "food_eaten": 0, "elixirs_drunk": 0, "scrolls_read": 0,
+            "food_eaten": 0, "potions_drunk": 0, "scrolls_read": 0,
             "hits_dealt": 0, "hits_taken": 0, "cells_walked": 0
         })
 

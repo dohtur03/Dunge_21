@@ -26,7 +26,18 @@ class Player:
         self.inventory = Inventory(name, game_ref)
 
     def update_stats(self):
-        self.total_str = self.str + (self.current_weapon.value if self.current_weapon is not None else 0)
+        # 1. Начинаем с чистой базовой силы
+        current_str = self.str
+
+        # 2. Добавляем бонусы от АКТИВНЫХ зелий (не меняя self.str!)
+        for effect in self.potion_effects:
+            if effect["type"] == "strength":
+                current_str += effect["value"]
+
+        # 3. Добавляем оружие
+        self.total_str = current_str
+        if self.current_weapon:
+            self.total_str += self.current_weapon.value
 
     def check_level_up(self):
         if self.exp >= self.exp_to_level_up:
@@ -45,40 +56,16 @@ class Player:
             "value": value,
             "end_time": time.time() + duration
         })
-
-        if effect_type == "max_hits":
-            self.max_hits += value
-            self.hits += value
-        elif effect_type == "strength":
-            self.str += value
-        elif effect_type == "agility":
-            self.agility += value
+        self.update_stats()
 
     def update_effects(self):
         current_time = time.time()
-        all_effects = self.potion_effects.copy()
-        self.potion_effects = []
+        initial_count = len(self.potion_effects)
 
-        max_hp_bonus = str_bonus = agi_bonus = 0
+        self.potion_effects = [e for e in self.potion_effects if current_time < e["end_time"]]
 
-        for effect in all_effects:
-            if current_time < effect["end_time"]:
-                self.potion_effects.append(effect)
-            else:
-                if effect["type"] == "max_hits":
-                    max_hp_bonus += effect["value"]
-                elif effect["type"] == "strength":
-                    str_bonus += effect["value"]
-                elif effect["type"] == "agility":
-                    agi_bonus += effect["value"]
-
-        self.max_hits -= max_hp_bonus
-        self.hits -= max_hp_bonus
-
-        if self.hits <= 0:
-            self.hits = 1
-        self.str -= str_bonus
-        self.agility -= agi_bonus
+        if len(self.potion_effects) != initial_count:
+            self.update_stats()
 
     def use_item(self, category: str, slot_idx: int) -> str:
         item = self.inventory.category_items[category][slot_idx]
@@ -154,7 +141,7 @@ class Player:
             self.add_potion_effect(item.effect_type, item.value, effect_duration)
             msg = f"{item.name} used! {item.effect_type} +{item.value} for {item.effect_duration} min!"
 
-            self.game.stats["elixirs_drunk"] += 1
+            self.game.stats["potions_drunk"] += 1
             self.inventory.category_items[category][slot_idx] = None
 
         return msg

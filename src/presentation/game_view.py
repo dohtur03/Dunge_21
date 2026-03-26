@@ -60,7 +60,7 @@ class GameView:
 
         controls = (
             "[Arrows/WASD]:Move [i]:Inventory  "
-            "[h]:Weapon  [k]:Elixir  [e]:Scroll  [j]:Food  "
+            "[h]:Weapon  [k]:Potion  [e]:Scroll  [j]:Food  "
             "[q]:Quit"
         )
 
@@ -124,7 +124,7 @@ class GameView:
                         self.stdscr.addch(dy, dx, char, curses.color_pair(2) | curses.A_BOLD)
 
         # --- СЛОЙ 3: ДВЕРИ И ВЫХОД ---
-        door_colors = {"Red": 1, "Blue": 4, "Yellow": 3}
+        door_colors = {"Red": 1, "Blue": 7, "Yellow": 2}
         # Обычные проемы
         for y, x in game.current_level.corridors:
             dy, dx = y + off_y, x + off_x
